@@ -1,0 +1,8 @@
+boto3
+fastapi
+pydantic
+tensorflow
+transformers
+psutil
+pyrapl
+uvicorn

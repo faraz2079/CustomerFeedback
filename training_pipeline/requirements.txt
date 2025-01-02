@@ -1,0 +1,6 @@
+tensorflow
+transformers
+datasets
+boto3
+numpy
+sklearn
