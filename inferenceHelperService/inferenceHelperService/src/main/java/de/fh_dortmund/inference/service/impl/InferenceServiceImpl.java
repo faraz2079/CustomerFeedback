@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 
-import de.fh_dortmund.inference.domain.component.MetricsBinder;
+import de.fh_dortmund.inference.domain.component.CustomMetricsBinder;
 import de.fh_dortmund.inference.domain.request.InferenceRequest;
 import de.fh_dortmund.inference.domain.response.InferenceResponse;
 import de.fh_dortmund.inference.service.InferenceService;
@@ -25,13 +25,14 @@ public class InferenceServiceImpl implements InferenceService {
 	@Autowired
 	private RestTemplate rest;
 	@Autowired
-	private MetricsBinder metrics;
+	private CustomMetricsBinder metrics;
 	@Value("${inference.url}")
 	private String inferenceUrl;
 
 	@Override
 	public String analyseFeedback(InferenceRequest request) throws Exception {
 		try {
+			logger.info("Preparing request for inference:" + request.getText());
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<InferenceRequest> inferenceEntity = new HttpEntity<InferenceRequest>(request, headers);
@@ -48,7 +49,7 @@ public class InferenceServiceImpl implements InferenceService {
 	}
 
 	private void addMetrics(InferenceResponse response) {
-		logger.info("Adding metrics to the dashboard.");
+		logger.info("Adding inference metrics to the dashboard.");
 		metrics.updateMetrics(response.getLatency(), response.getFeedbackScore(), response.getAccuracy(),
 				response.getCpuUtilization(), response.getPowerConsumption());
 	}

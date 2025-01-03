@@ -4,7 +4,7 @@ import { SharedArray } from 'k6/data';
 
 // Read and parse the JSON input file
 const inputData = new SharedArray('input data', function () {
-    return JSON.parse(open('./inputfile.json'));
+    return JSON.parse(open('./file_processing/inputFile1.json'));
 });
 
 export const options = {

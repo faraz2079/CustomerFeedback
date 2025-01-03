@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import de.fh_dortmund.inference.domain.component.CustomMetricsBinder;
 import de.fh_dortmund.inference.domain.request.InferenceRequest;
 import de.fh_dortmund.inference.service.InferenceService;
 import jakarta.validation.Valid;
@@ -23,11 +25,14 @@ public class InferenceServiceController {
 
 	@Autowired
 	private InferenceService service;
+	@Autowired
+	private CustomMetricsBinder metrics;
 
 	@PostMapping("/feedback")
 	public ResponseEntity<String> analyseFeedback(@Valid @NotNull @RequestBody InferenceRequest request) {
 		try {
 			logger.info("Feedback received: " + request.getText());
+			metrics.incrementRequestCount();
 			String sentiment = service.analyseFeedback(request);
 			logger.info("Overall Sentiment of the customer for the product: " + sentiment);
 			return ResponseEntity.status(HttpStatus.OK).body(sentiment);
