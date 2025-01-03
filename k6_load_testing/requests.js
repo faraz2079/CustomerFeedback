@@ -29,7 +29,7 @@ export default function () {
     const record = inputData[__ITER % inputData.length];
     const payload = JSON.stringify(record);
 
-    const url = 'http://localhost:8080/api/v1/feedback';
+    const url = 'http://localhost:8501/api/v1/feedback';
     const params = {
         headers: {
             'Content-Type': 'application/json',

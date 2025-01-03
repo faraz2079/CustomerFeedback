@@ -172,7 +172,7 @@ def analyze_feedback(feedback):
 
 
 # API endpoint
-@app.post("/feedback/analyze", response_model=FeedbackResponse)
+@app.post("/feedback/analyse", response_model=FeedbackResponse)
 def analyze(feedback: FeedbackRequest):
     if feedback.stars < 1 or feedback.stars > 5:
         logger.warning("Invalid stars value received.")
