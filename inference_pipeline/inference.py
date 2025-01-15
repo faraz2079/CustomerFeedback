@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import tensorflow as tf
-from transformers import MobileBertTokenizer, TFAutoModelForSequenceClassification
+from feedback_request_model import FeedbackRequest
+from feedback_response_model import FeedbackResponse
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import boto3
 import os
 import time
@@ -25,35 +26,20 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # AWS S3 Configuration
-S3_BUCKET = "your-s3-bucket-name"
-MODEL_PATH = "models/latest/"
-NEW_DATA_PATH = "new_data/"
+S3_BUCKET = "s3://customerfeedbackmlbucket/"
+MODEL_PATH = "models/"
+NEW_DATA_PATH = "datasets/"
 
 s3_client = boto3.client("s3")
 
 
-
-class FeedbackRequest(BaseModel):
-    text: str
-    stars: int
-
-
-class FeedbackResponse(BaseModel):
-    sentiment: str
-    latency: float
-    feedback_score: float
-    accuracy: float
-    cpu_utilization: float
-    power_consumption: float
-
-
 # Load the model and tokenizer from S3
 def download_model_from_s3():
-    local_model_dir = "./model_dir"
+    local_model_dir = "/home/bhanu/s3/models/"
     os.makedirs(local_model_dir, exist_ok=True)
 
     logger.info("Downloading model files from S3...")
-    for file_name in ["tf_model.h5", "config.json"]:
+    for file_name in ["pytorch_model.bin", "config.json"]:
         try:
             s3_client.download_file(S3_BUCKET, f"{MODEL_PATH}{file_name}", os.path.join(local_model_dir, file_name))
             logger.info(f"Successfully downloaded {file_name} from S3.")
@@ -62,8 +48,8 @@ def download_model_from_s3():
             raise e
 
     logger.info("Model download complete.")
-    model = TFAutoModelForSequenceClassification.from_pretrained(local_model_dir)
-    tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
+    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir)
+    tokenizer = AutoTokenizer.from_pretrained("google/mobilebert-uncased")
     return model, tokenizer
 
 
@@ -81,10 +67,9 @@ sentiment_labels = {0: "Negative", 1: "Positive"}
 def log_new_data_to_s3(feedback):
     new_data = {
         "text": feedback.text,
-        "stars": feedback.stars,
-        "timestamp": datetime.now().isoformat()
+        "stars": feedback.stars
     }
-    new_data_path = f"/tmp/new_feedback.jsonl"
+    new_data_path = f"/home/bhanu/s3/datasets/inputFile.jsonl"
 
     # Write to a local file
     try:
@@ -127,25 +112,26 @@ def analyze_feedback(feedback):
 
     try:
         # Tokenize the input text
-        inputs = tokenizer(feedback.text, return_tensors="tf", truncation=True, padding=True, max_length=128)
+        inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=128)
         logger.debug("Tokenization complete.")
 
         # Predict sentiment
-        predictions = model(inputs)[0]
-        predicted_label = tf.argmax(predictions, axis=1).numpy()[0]
-        sentiment = sentiment_labels[predicted_label]
+        with torch.no_grad():
+            outputs = model(**inputs)
+            predictions = torch.argmax(outputs.logits, dim=1).item()
+            sentiment = sentiment_labels[predictions]
         logger.debug(f"Prediction complete. Sentiment: {sentiment}")
 
         # Feedback scoring based on stars
         stars_weight = feedback.stars / 5
-        feedback_score = predicted_label * stars_weight
+        feedback_score = predictions * stars_weight
 
         # End latency measurement
         end_time = time.time()
         latency = end_time - start_time
 
         # Accuracy
-        accuracy = calculate_accuracy(predicted_label, 1 if feedback.stars >= 3 else 0)
+        accuracy = calculate_accuracy(predictions, 1 if feedback.stars >= 3 else 0)
 
         # Additional metrics
         cpu_utilization = get_cpu_utilization()

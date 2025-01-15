@@ -9,7 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-
 # Custom Dataset Class
 class TextDataset(Dataset):
     def __init__(self, texts, labels, tokenizer, max_length=128):
@@ -32,7 +31,6 @@ class TextDataset(Dataset):
             "labels": torch.tensor(label, dtype=torch.long)
         }
 
-
 # Function for pseudo-label generation
 def generate_pseudo_labels(model, tokenizer, texts, device):
     logger.info("Generating pseudo-labels...")
@@ -46,27 +44,23 @@ def generate_pseudo_labels(model, tokenizer, texts, device):
 
     return pseudo_labels
 
-
 # Function to train the model
 def train_model(data_path, is_initial_training):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
 
-    # Load dataset for initial or retraining
+    # Load default dataset for initial training else retrain on new dataset
     if is_initial_training:
         logger.info("Initial training: Loading Amazon Polarity dataset.")
         amazon_dataset = load_dataset("amazon_polarity")
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
-
         amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer)
     else:
         logger.info(f"Retraining: Loading new unlabeled dataset from {data_path}.")
         with open(data_path, "r") as f:
             data = json.load(f)
         texts = [item["text"] for item in data]
-
-        # Step 1: Generate pseudo-labels for retraining
         logger.info("Generating pseudo-labels with pre-trained model...")
         model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=2)
         model.to(device)
@@ -79,14 +73,15 @@ def train_model(data_path, is_initial_training):
         model.to(device)
 
         retrain_args = TrainingArguments(
-            output_dir="./retrain_results",
-            evaluation_strategy="epoch",
+            output_dir="/home/bhanu/results",
+            save_steps=1000,
+            save_total_limit=2,
+            eval_strategy="no",
             learning_rate=2e-5,
             per_device_train_batch_size=16,
             num_train_epochs=3,
-            save_steps=10,
-            logging_dir="./retrain_logs",
-            logging_steps=10,
+            logging_dir="/home/bhanu/retrain_logs",
+            logging_steps=1000,
         )
 
         retrainer = Trainer(
