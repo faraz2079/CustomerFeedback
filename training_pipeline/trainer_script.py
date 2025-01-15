@@ -108,15 +108,15 @@ def train_model(data_path, is_initial_training):
     model.to(device)
 
     training_args = TrainingArguments(
-        output_dir="./results",
-        save_strategy="no",
+        output_dir="/home/bhanu/results",
+        save_steps=500,
+        save_total_limit=2,
         eval_strategy="no",
         learning_rate=2e-5,
         per_device_train_batch_size=16,
         num_train_epochs=3,
-        save_steps=10,
-        logging_dir="./logs",
-        logging_steps=10,
+        logging_dir="/home/bhanu/logs",
+        logging_steps=1000,
     )
 
     trainer = Trainer(
