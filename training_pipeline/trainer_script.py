@@ -109,7 +109,7 @@ def train_model(data_path, is_initial_training):
 
     training_args = TrainingArguments(
         output_dir="/home/bhanu/results",
-        save_steps=5000,
+        save_steps=1000,
         save_total_limit=2,
         eval_strategy="no",
         learning_rate=2e-5,
