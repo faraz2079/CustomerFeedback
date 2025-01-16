@@ -1,7 +1,7 @@
 boto3
 fastapi
 pydantic
-tensorflow
+torch
 transformers
 psutil
 pyrapl

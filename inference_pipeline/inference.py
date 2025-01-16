@@ -8,7 +8,6 @@ import os
 import time
 import psutil
 import pyrapl
-from datetime import datetime
 import json
 import logging
 
@@ -26,16 +25,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # AWS S3 Configuration
-S3_BUCKET = "s3://customerfeedbackmlbucket/"
+S3_BUCKET = "customerfeedbackmlbucket"
 MODEL_PATH = "models/"
 NEW_DATA_PATH = "datasets/"
 
 s3_client = boto3.client("s3")
 
-
 # Load the model and tokenizer from S3
 def download_model_from_s3():
-    local_model_dir = "/home/bhanu/s3/models/"
+    local_model_dir = os.path.expanduser("~/s3/inference/models/")
     os.makedirs(local_model_dir, exist_ok=True)
 
     logger.info("Downloading model files from S3...")
@@ -46,12 +44,10 @@ def download_model_from_s3():
         except Exception as e:
             logger.error(f"Error downloading {file_name} from S3: {e}")
             raise e
-
     logger.info("Model download complete.")
     model = AutoModelForSequenceClassification.from_pretrained(local_model_dir)
     tokenizer = AutoTokenizer.from_pretrained("google/mobilebert-uncased")
     return model, tokenizer
-
 
 try:
     model, tokenizer = download_model_from_s3()
@@ -62,19 +58,20 @@ except Exception as e:
 # Define sentiment labels
 sentiment_labels = {0: "Negative", 1: "Positive"}
 
-
 # Log new data to S3
 def log_new_data_to_s3(feedback):
     new_data = {
         "text": feedback.text,
         "stars": feedback.stars
     }
-    new_data_path = f"/home/bhanu/s3/datasets/inputFile.jsonl"
+    new_data_path = os.path.expanduser("~/s3/inference/datasets/")
+    os.makedirs(new_data_path, exist_ok=True)
+    new_data_file = os.path.join(new_data_path, "inputFile.jsonl")
 
     # Write to a local file
     try:
-        mode = "a" if os.path.exists(new_data_path) else "w"
-        with open(new_data_path, mode) as f:
+        mode = "a" if os.path.exists(new_data_file) else "w"
+        with open(new_data_file, mode) as f:
             f.write(json.dumps(new_data) + "\n")
         logger.info("New feedback data written to local file.")
     except Exception as e:
@@ -82,21 +79,18 @@ def log_new_data_to_s3(feedback):
 
     # Upload to S3
     try:
-        s3_client.upload_file(new_data_path, S3_BUCKET, f"{NEW_DATA_PATH}new_feedback.jsonl")
+        s3_client.upload_file(new_data_path, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
         logger.info("New feedback data uploaded to S3.")
     except Exception as e:
         logger.error("Failed to upload new feedback data to S3.", exc_info=True)
-
 
 # Calculate accuracy
 def calculate_accuracy(predictions, actual_label):
     return 1.0 if predictions == actual_label else 0.0
 
-
 # Measure CPU utilization
 def get_cpu_utilization():
     return psutil.cpu_percent(interval=1)
-
 
 # Measure power consumption
 def get_power_consumption():
@@ -104,13 +98,11 @@ def get_power_consumption():
     power_metrics = rapl.measure()
     return power_metrics["package-0"]["energy (J)"]
 
-
-# Inference logic
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
     start_time = time.time()
-
     try:
+
         # Tokenize the input text
         inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=128)
         logger.debug("Tokenization complete.")
@@ -155,7 +147,6 @@ def analyze_feedback(feedback):
     except Exception as e:
         logger.error("Error during inference.", exc_info=True)
         raise e
-
 
 # API endpoint
 @app.post("/feedback/analyse", response_model=FeedbackResponse)

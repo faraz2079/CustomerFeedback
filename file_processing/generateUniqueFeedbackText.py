@@ -8,11 +8,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
 model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
+#Generate paraphrases for a given text.
 def paraphrase_text(text, num_return_sequences=3):
-    """Generate paraphrases for a given text."""
     input_text = f"{text} </s>"
     input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
-
     outputs = model.generate(
         input_ids=input_ids,
         max_length=256,  # Limiting output length to 256 tokens
@@ -25,14 +24,14 @@ def paraphrase_text(text, num_return_sequences=3):
     )
     return [tokenizer.decode(output, skip_special_tokens=True, clean_up_tokenization_spaces=True) for output in outputs]
 
+#Check if text contains English words.
 def is_english_text(text):
-    """Check if text contains predominantly English words."""
     words = text.split()
     english_words = [word for word in words if word.isalpha()]
     return len(english_words) / max(len(words), 1) > 0.5
 
+#Fix paraphrase structure and validate its meaning.
 def clean_paraphrase_structure(paraphrase):
-    """Fix paraphrase structure and validate its meaning."""
     # Split long sentences into individual parts for processing
     sentences = [s.strip() for s in paraphrase.split('.') if s.strip()]
     meaningful_sentences = []
@@ -56,10 +55,8 @@ def clean_paraphrase_structure(paraphrase):
     # Join meaningful sentences back into a single text
     return '. '.join(meaningful_sentences) + '.' if meaningful_sentences else None
 
-# Start logging
 logging.info(f"Started processing feedback data.")
 
-# Load JSON feedback data
 input_file = 'inputFile1.json'
 output_file = 'feedback_input_text_unique_variations.json'
 
