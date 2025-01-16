@@ -29,7 +29,7 @@ S3_BUCKET = "customerfeedbackmlbucket"
 MODEL_PATH = "models/"
 NEW_DATA_PATH = "datasets/"
 
-s3_client = boto3.client("s3")
+s3_client = boto3.client('s3', region_name='eu-central-1')
 
 # Load the model and tokenizer from S3
 def download_model_from_s3():

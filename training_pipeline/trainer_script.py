@@ -16,7 +16,7 @@ S3_BUCKET = "customerfeedbackmlbucket"
 MODEL_PATH = "models/"
 NEW_DATA_PATH = "datasets/"
 
-s3_client = boto3.client("s3")
+s3_client = boto3.client('s3', region_name='eu-central-1')
 
 trainer_dir = os.path.expanduser("~/trainerModel/mobilebert_trained_model")
 result_dir = os.path.expanduser("~/trainerModel/results")
