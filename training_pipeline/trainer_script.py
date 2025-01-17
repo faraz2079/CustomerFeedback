@@ -29,7 +29,7 @@ os.makedirs(logs_dir, exist_ok=True)
 
 # Custom Dataset Class
 class TextDataset(Dataset):
-	def __init__(self, texts, labels, tokenizer, max_length=128):
+	def __init__(self, texts, labels, tokenizer, max_length=256):
 		self.texts = texts
 		self.labels = labels
 		self.tokenizer = tokenizer
@@ -53,7 +53,7 @@ class TextDataset(Dataset):
 def generate_pseudo_labels(model, tokenizer, texts, device):
 	logger.info("Generating pseudo-labels...")
 	model.eval()
-	inputs = tokenizer(texts, truncation=True, padding=True, max_length=128, return_tensors="pt")
+	inputs = tokenizer(texts, truncation=True, padding=True, max_length=256, return_tensors="pt")
 	inputs = {key: val.to(device) for key, val in inputs.items()}
 
 	with torch.no_grad():
@@ -82,15 +82,11 @@ def train_model(data_path, is_initial_training):
 				item = json.loads(line)
 				texts.append(item["text"])
 		logger.info("Generating pseudo-labels with pre-trained model...")
-		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=2)
+		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
 		model.to(device)
 
 		pseudo_labels = generate_pseudo_labels(model, tokenizer, texts, device)
 		retrain_dataset = TextDataset(texts, pseudo_labels, tokenizer)
-
-		# Set up the model for retraining
-		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=2)
-		model.to(device)
 
 		retrain_args = TrainingArguments(
 			output_dir=f"{result_dir}",
@@ -125,7 +121,7 @@ def train_model(data_path, is_initial_training):
 
 	# Step 2: Initial training on Amazon Polarity dataset
 	logger.info("Training on Amazon Polarity dataset...")
-	model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=2)
+	model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
 	model.to(device)
 
 	training_args = TrainingArguments(

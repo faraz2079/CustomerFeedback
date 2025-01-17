@@ -5,7 +5,6 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import boto3
 import os
-import time
 import psutil
 import pyRAPL
 import json
@@ -68,7 +67,7 @@ except Exception as e:
     raise RuntimeError("Model initialization failed.") from e
 
 # Define sentiment labels
-sentiment_labels = {0: "Negative", 1: "Positive"}
+sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
 
 # Log new data to S3
 def log_new_data_to_s3(feedback):
@@ -97,8 +96,8 @@ def log_new_data_to_s3(feedback):
         logger.error("Failed to upload new feedback data to S3.", exc_info=True)
 
 # Calculate accuracy
-def calculate_accuracy(predictions, actual_label):
-    return 1.0 if predictions == actual_label else 0.0
+def calculate_accuracy(predictions, ground_truth):
+    return 1 if predictions == ground_truth else 0
 
 # Measure CPU utilization
 def get_cpu_utilization():
@@ -112,41 +111,43 @@ def analyze_feedback(feedback):
     try:
 
         # Tokenize the input text
-        inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=128)
-        logger.debug("Tokenization complete.")
+        inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
+        logger.info("Tokenization complete.")
 
         # Predict sentiment
         with torch.no_grad():
             outputs = model(**inputs)
             predictions = torch.argmax(outputs.logits, dim=1).item()
             sentiment = sentiment_labels[predictions]
-        logger.debug(f"Prediction complete. Sentiment: {sentiment}")
+        logger.info(f"Prediction complete. Sentiment: {sentiment}")
 
         # Feedback scoring based on stars
         stars_weight = feedback.stars / 5
-        feedback_score = predictions * stars_weight
+        feedback_score = predictions + stars_weight
+        logger.info(f"feedback score: {feedback_score}")
 
         # Accuracy
-        accuracy = calculate_accuracy(predictions, 1 if feedback.stars >= 3 else 0)
+        ground_truth = 1 if feedback.stars >= 3 else 0
+        accuracy = calculate_accuracy(predictions, ground_truth)
 
         # Additional metrics
         cpu_utilization = get_cpu_utilization()
 
         # Interpret overall sentiment
-        if feedback_score <= 1.5:
+        if feedback_score <= 1:
             overall_sentiment = "Disappointed"
-        elif feedback_score <= 2.5:
+        elif feedback_score <= 2:
             overall_sentiment = "Angry"
-        elif feedback_score <= 3.5:
+        elif feedback_score <= 3:
             overall_sentiment = "Neutral"
-        elif feedback_score <= 4.5:
+        elif feedback_score <= 4:
             overall_sentiment = "Satisfied"
         else:
             overall_sentiment = "Happy"
 
         rapl.end()
-        power_metrics = rapl.result()
-        power_consumption = power_metrics.pkg
+        power_metrics = rapl.result.pkg
+        power_consumption = power_metrics
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
         return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption
 
