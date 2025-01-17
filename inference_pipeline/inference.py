@@ -7,7 +7,7 @@ import boto3
 import os
 import time
 import psutil
-import pyrapl
+import pyRAPL
 import json
 import logging
 
