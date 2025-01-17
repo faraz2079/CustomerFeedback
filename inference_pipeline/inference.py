@@ -37,16 +37,28 @@ def download_model_from_s3():
     os.makedirs(local_model_dir, exist_ok=True)
 
     logger.info("Downloading model files from S3...")
-    for file_name in ["pytorch_model.bin", "config.json"]:
-        try:
-            s3_client.download_file(S3_BUCKET, f"{MODEL_PATH}{file_name}", os.path.join(local_model_dir, file_name))
-            logger.info(f"Successfully downloaded {file_name} from S3.")
-        except Exception as e:
-            logger.error(f"Error downloading {file_name} from S3: {e}")
-            raise e
+    try:
+        # List all files in the specified S3 bucket directory
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=MODEL_PATH)
+        if 'Contents' not in response:
+            raise ValueError(f"No files found in S3 path: {MODEL_PATH}")
+
+        for obj in response['Contents']:
+            file_name = os.path.basename(obj['Key'])
+            if file_name:
+                local_file_path = os.path.join(local_model_dir, file_name)
+                try:
+                    s3_client.download_file(S3_BUCKET, obj['Key'], local_file_path)
+                    logger.info(f"Successfully downloaded {file_name} from S3.")
+                except Exception as e:
+                    logger.error(f"Error downloading {file_name} from S3: {e}")
+                    raise e
+    except Exception as e:
+        logger.error(f"Error listing files from S3: {e}")
+        raise e
     logger.info("Model download complete.")
-    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir)
-    tokenizer = AutoTokenizer.from_pretrained("google/mobilebert-uncased")
+    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir, from_safetensors=True)
+    tokenizer = AutoTokenizer.from_pretrained(local_model_dir)
     return model, tokenizer
 
 try:
