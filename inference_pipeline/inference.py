@@ -104,15 +104,11 @@ def calculate_accuracy(predictions, actual_label):
 def get_cpu_utilization():
     return psutil.cpu_percent(interval=1)
 
-# Measure power consumption
-def get_power_consumption():
-    rapl = pyRAPL.Measurement(label="inference")
-    power_metrics = rapl.measure()
-    return power_metrics["package-0"]["energy (J)"]
-
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
-    start_time = time.time()
+    pyRAPL.setup()
+    rapl = pyRAPL.Measurement(label="inference")
+    rapl.begin()
     try:
 
         # Tokenize the input text
@@ -130,16 +126,11 @@ def analyze_feedback(feedback):
         stars_weight = feedback.stars / 5
         feedback_score = predictions * stars_weight
 
-        # End latency measurement
-        end_time = time.time()
-        latency = end_time - start_time
-
         # Accuracy
         accuracy = calculate_accuracy(predictions, 1 if feedback.stars >= 3 else 0)
 
         # Additional metrics
         cpu_utilization = get_cpu_utilization()
-        power_consumption = get_power_consumption()
 
         # Interpret overall sentiment
         if feedback_score <= 1.5:
@@ -153,8 +144,11 @@ def analyze_feedback(feedback):
         else:
             overall_sentiment = "Happy"
 
+        rapl.end()
+        power_metrics = rapl.result()
+        power_consumption = power_metrics.pkg
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
-        return sentiment, feedback_score, latency, overall_sentiment, accuracy, cpu_utilization, power_consumption
+        return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption
 
     except Exception as e:
         logger.error("Error during inference.", exc_info=True)
@@ -175,11 +169,10 @@ def analyze(feedback: FeedbackRequest):
 
     # Perform inference
     try:
-        sentiment, feedback_score, latency, overall_sentiment, accuracy, cpu_utilization, power_consumption = analyze_feedback(
+        sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption = analyze_feedback(
             feedback)
         return FeedbackResponse(
             sentiment=overall_sentiment,
-            latency=latency,
             feedback_score=feedback_score,
             accuracy=accuracy,
             cpu_utilization=cpu_utilization,
