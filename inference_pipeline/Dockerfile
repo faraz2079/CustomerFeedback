@@ -1,5 +1,5 @@
 # Use Python 3.12 slim as the base image
-FROM python:3.12-slim
+FROM python:3.12.8
 WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
