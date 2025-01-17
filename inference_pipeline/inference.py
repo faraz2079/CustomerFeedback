@@ -106,7 +106,7 @@ def get_cpu_utilization():
 
 # Measure power consumption
 def get_power_consumption():
-    rapl = pyRAPL.Measurement()
+    rapl = pyRAPL.Measurement(label="inference")
     power_metrics = rapl.measure()
     return power_metrics["package-0"]["energy (J)"]
 
