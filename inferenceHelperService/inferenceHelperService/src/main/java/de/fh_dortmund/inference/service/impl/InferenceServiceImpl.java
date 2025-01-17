@@ -1,5 +1,8 @@
 package de.fh_dortmund.inference.service.impl;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,13 +36,16 @@ public class InferenceServiceImpl implements InferenceService {
 	public String analyseFeedback(InferenceRequest request) throws Exception {
 		try {
 			logger.info("Preparing request for inference:" + request.getText());
+			LocalDateTime timeStart = LocalDateTime.now();
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<InferenceRequest> inferenceEntity = new HttpEntity<InferenceRequest>(request, headers);
 			ResponseEntity<InferenceResponse> response = rest.exchange(inferenceUrl, HttpMethod.POST, inferenceEntity,
 					InferenceResponse.class);
+			LocalDateTime timeEnd = LocalDateTime.now();
+			long latency = Duration.between(timeStart, timeEnd).toMillis();
 			if (response.getBody() != null) {
-				addMetrics(response.getBody());
+				addMetrics(response.getBody(), latency);
 				return response.getBody().getSentiment();
 			}
 		} catch (Exception e) {
@@ -48,9 +54,9 @@ public class InferenceServiceImpl implements InferenceService {
 		return null;
 	}
 
-	private void addMetrics(InferenceResponse response) {
+	private void addMetrics(InferenceResponse response, long latency) {
 		logger.info("Adding inference metrics to the dashboard.");
-		metrics.updateMetrics(response.getLatency(), response.getFeedbackScore(), response.getAccuracy(),
+		metrics.updateMetrics(latency, response.getFeedbackScore(), response.getAccuracy(),
 				response.getCpuUtilization(), response.getPowerConsumption());
 	}
 

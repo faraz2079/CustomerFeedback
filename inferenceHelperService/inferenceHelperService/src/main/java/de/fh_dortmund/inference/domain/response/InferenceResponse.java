@@ -8,7 +8,6 @@ import lombok.Data;
 public class InferenceResponse {
 
 	private String sentiment;
-	private float latency;
 	private float feedbackScore;
 	private float accuracy;
 	private float cpuUtilization;

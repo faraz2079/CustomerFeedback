@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 public class CustomMetricsBinder implements MeterBinder {
 
-	private volatile float latency;
+	private volatile long latency;
 	private volatile float feedbackScore;
 	private volatile float accuracy;
 	private volatile float cpuUtilization;
@@ -29,7 +29,7 @@ public class CustomMetricsBinder implements MeterBinder {
 				.register(Metrics.globalRegistry);
 	}
 
-	public void updateMetrics(float latency, float feedbackScore, float accuracy, float cpuUtilization,
+	public void updateMetrics(long latency, float feedbackScore, float accuracy, float cpuUtilization,
 			float powerConsumption) {
 		this.latency = latency;
 		this.feedbackScore = feedbackScore;
