@@ -91,7 +91,7 @@ def log_new_data_to_s3(feedback):
 
     # Upload to S3
     try:
-        s3_client.upload_file(new_data_path, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
+        s3_client.upload_file(new_data_file, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
         logger.info("New feedback data uploaded to S3.")
     except Exception as e:
         logger.error("Failed to upload new feedback data to S3.", exc_info=True)
@@ -106,7 +106,7 @@ def get_cpu_utilization():
 
 # Measure power consumption
 def get_power_consumption():
-    rapl = pyrapl.Measurement()
+    rapl = pyRAPL.Measurement()
     power_metrics = rapl.measure()
     return power_metrics["package-0"]["energy (J)"]
 
