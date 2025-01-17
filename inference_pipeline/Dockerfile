@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install --no-cache-dir awscli
 COPY requirements.txt .
+ENV AWS_ACCESS_KEY_ID=AKIAXWHDLS5CZB25WJ7J
+ENV AWS_SECRET_ACCESS_KEY=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
+ENV AWS_DEFAULT_REGION=eu-central-1
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
