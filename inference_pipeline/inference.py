@@ -57,7 +57,7 @@ def download_model_from_s3():
         logger.error(f"Error listing files from S3: {e}")
         raise e
     logger.info("Model download complete.")
-    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir, from_safetensors=True)
+    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir)
     tokenizer = AutoTokenizer.from_pretrained(local_model_dir)
     return model, tokenizer
 
