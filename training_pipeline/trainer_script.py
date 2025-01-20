@@ -1,11 +1,12 @@
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments
 from datasets import load_dataset
 import json
 import logging
 import boto3
 import os
+from botocore.exceptions import ClientError
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ def generate_pseudo_labels(model, tokenizer, texts, device):
 
 	with torch.no_grad():
 		outputs = model(**inputs)
-		pseudo_labels = torch.argmax(outputs.logits, axis=-1).tolist()
+		pseudo_labels = torch.argmax(outputs.logits, dim=-1).tolist()
 
 	return pseudo_labels
 
@@ -160,9 +161,13 @@ def main():
 	dataset = os.path.join(data_path, "inputFile.jsonl")
 	try:
 		s3_client.download_file(S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl", dataset)
-	except Exception as e:
+	except ClientError as e:
 		logger.error(f"Error downloading inputFile.jsonl from S3: {e}")
-		raise e
+		if e.response["Error"]["Code"] == "404":
+			logger.error("File not found in S3 (404). Skipping download.")
+		else:
+			logger.error(f"Unexpected S3 error: {e}")
+			raise
 	is_initial_training = True  # Set this flag to False for retraining
 	train_model(dataset, is_initial_training)
 
