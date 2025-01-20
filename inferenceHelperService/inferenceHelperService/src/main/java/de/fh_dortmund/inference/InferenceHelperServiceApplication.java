@@ -20,5 +20,4 @@ public class InferenceHelperServiceApplication {
 	RestTemplate createRestTemplate() {
 		return new RestTemplate();
 	}
-
 }
