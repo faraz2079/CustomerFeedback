@@ -11,7 +11,7 @@ model = T5ForConditionalGeneration.from_pretrained("t5-small")
 #Generate paraphrases for a given text.
 def paraphrase_text(text, num_return_sequences=3):
     input_text = f"{text} </s>"
-    input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
+    input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
     outputs = model.generate(
         input_ids=input_ids,
         max_length=256,  # Limiting output length to 256 tokens

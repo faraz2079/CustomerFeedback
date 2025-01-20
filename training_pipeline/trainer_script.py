@@ -51,7 +51,7 @@ class TextDataset(Dataset):
 		}
 
 # Function for pseudo-label generation
-def generate_pseudo_labels(model, tokenizer, texts, device):
+def generate_pseudo_labels(model, tokenizer, texts, device, confidence_threshold=0.9):
 	logger.info("Generating pseudo-labels...")
 	model.eval()
 	inputs = tokenizer(texts, truncation=True, padding=True, max_length=256, return_tensors="pt")
@@ -59,14 +59,22 @@ def generate_pseudo_labels(model, tokenizer, texts, device):
 
 	with torch.no_grad():
 		outputs = model(**inputs)
-		pseudo_labels = torch.argmax(outputs.logits, dim=-1).tolist()
+		probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+		max_probs, pseudo_labels = torch.max(probabilities, dim=-1)
 
-	return pseudo_labels
+	# Filter labels by confidence
+	confident_indices = (max_probs >= confidence_threshold).cpu().numpy()
+	confident_indices = confident_indices.tolist()
+	pseudo_labels = pseudo_labels.tolist()
+	texts = [text for i, text in enumerate(texts) if confident_indices[i] == 1]
+	pseudo_labels = [pseudo_labels[i] for i in range(len(confident_indices)) if confident_indices[i] == 1]
+
+	return texts, pseudo_labels
+
 
 # Function to train the model
 def train_model(data_path, is_initial_training):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-	tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
 
 	# Load default dataset for initial training else retrain on new dataset
 	if is_initial_training:
@@ -74,20 +82,59 @@ def train_model(data_path, is_initial_training):
 		amazon_dataset = load_dataset("amazon_polarity")
 		amazon_texts = amazon_dataset["train"]["content"]
 		amazon_labels = amazon_dataset["train"]["label"]
+		tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
 		amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer)
+		logger.info("Training on Amazon Polarity dataset...")
+		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
+		model.to(device)
+		training_args = TrainingArguments(
+			output_dir=f"{result_dir}",
+			save_steps=1000,
+			save_total_limit=2,
+			eval_strategy="no",
+			learning_rate=2e-5,
+			per_device_train_batch_size=16,
+			num_train_epochs=3,
+			logging_dir=f"{logs_dir}",
+			logging_steps=1000,
+		)
+
+		trainer = Trainer(
+			model=model,
+			args=training_args,
+			train_dataset=amazon_train_dataset
+		)
+
+		trainer.train()
+
+		# Save the initial trained model
+		initial_model_dir = f"{trainer_dir}"
+		model.save_pretrained(initial_model_dir)
+		tokenizer.save_pretrained(initial_model_dir)
+		for file_name in os.listdir(initial_model_dir):
+			local_file_path = os.path.join(initial_model_dir, file_name)
+			s3_key = f"{MODEL_PATH}{file_name}"
+			s3_client.upload_file(local_file_path, S3_BUCKET, s3_key)
+			logger.info(f"Uploaded {local_file_path} to s3://{S3_BUCKET}/{s3_key}")
+		logger.info(f"Initial model saved to {initial_model_dir}")
+
 	else:
 		logger.info(f"Retraining: Loading new unlabeled dataset from {data_path}.")
+		tokenizer = MobileBertTokenizer.from_pretrained(f"{trainer_dir}")
 		texts = []
 		with open(data_path, "r") as f:
 			for line in f:
 				item = json.loads(line)
 				texts.append(item["text"])
 		logger.info("Generating pseudo-labels with pre-trained model...")
-		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
+		model = MobileBertForSequenceClassification.from_pretrained(f"{trainer_dir}", num_labels=5)
 		model.to(device)
-
-		pseudo_labels = generate_pseudo_labels(model, tokenizer, texts, device)
-		retrain_dataset = TextDataset(texts, pseudo_labels, tokenizer)
+		confident_texts, pseudo_labels = generate_pseudo_labels(model, tokenizer, texts, device,0.9)
+		if len(confident_texts) == 0:
+			logger.warning("No confident pseudo-labels generated. Aborting retraining.")
+			return
+		logger.info(f"Retained {len(confident_texts)} out of {len(texts)} samples for retraining.")
+		retrain_dataset = TextDataset(confident_texts, pseudo_labels, tokenizer)
 
 		retrain_args = TrainingArguments(
 			output_dir=f"{result_dir}",
@@ -119,42 +166,6 @@ def train_model(data_path, is_initial_training):
 
 		logger.info(f"Fine-tuned model saved to {retrain_model_dir}")
 		return
-
-	# Step 2: Initial training on Amazon Polarity dataset
-	logger.info("Training on Amazon Polarity dataset...")
-	model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
-	model.to(device)
-
-	training_args = TrainingArguments(
-		output_dir=f"{result_dir}",
-		save_steps=1000,
-		save_total_limit=2,
-		eval_strategy="no",
-		learning_rate=2e-5,
-		per_device_train_batch_size=16,
-		num_train_epochs=3,
-		logging_dir=f"{logs_dir}",
-		logging_steps=1000,
-	)
-
-	trainer = Trainer(
-		model=model,
-		args=training_args,
-		train_dataset=amazon_train_dataset
-	)
-
-	trainer.train()
-
-	# Save the initial trained model
-	initial_model_dir = f"{trainer_dir}"
-	model.save_pretrained(initial_model_dir)
-	tokenizer.save_pretrained(initial_model_dir)
-	for file_name in os.listdir(initial_model_dir):
-		local_file_path = os.path.join(initial_model_dir, file_name)
-		s3_key = f"{MODEL_PATH}{file_name}"
-		s3_client.upload_file(local_file_path, S3_BUCKET, s3_key)
-		logger.info(f"Uploaded {local_file_path} to s3://{S3_BUCKET}/{s3_key}")
-	logger.info(f"Initial model saved to {initial_model_dir}")
 
 def main():
 	data_path = f"{dataset_dir}"
