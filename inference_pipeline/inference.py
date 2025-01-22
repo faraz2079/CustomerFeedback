@@ -10,6 +10,7 @@ import json
 import logging
 import subprocess
 import csv
+import fcntl
 
 # Configure logging
 logging.basicConfig(
@@ -21,21 +22,21 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-app = FastAPI()
-
 # AWS S3 Configuration
 S3_BUCKET = "customerfeedbackmlbucket"
 MODEL_PATH = "models/"
 NEW_DATA_PATH = "datasets/"
-
+local_model_dir = os.path.expanduser("~/s3/inference/models/")
+output_dir = os.path.expanduser("~/s3/inference/powerMetrics/")
+new_data_path_local = os.path.expanduser("~/s3/inference/datasets/")
+new_data_file_local = os.path.join(new_data_path_local, "inputFile.jsonl")
 s3_client = boto3.client('s3', region_name='eu-central-1')
+
+app = FastAPI()
 
 # Load the model and tokenizer from S3
 def download_model_from_s3():
-    local_model_dir = os.path.expanduser("~/s3/inference/models/")
     os.makedirs(local_model_dir, exist_ok=True)
-
     logger.info("Downloading model files from S3...")
     try:
         # List all files in the specified S3 bucket directory
@@ -61,53 +62,40 @@ def download_model_from_s3():
     tokenizer = AutoTokenizer.from_pretrained(local_model_dir)
     return model, tokenizer
 
-try:
-    model, tokenizer = download_model_from_s3()
-except Exception as e:
-    logger.critical("Failed to load model. Service cannot start.", exc_info=True)
-    raise RuntimeError("Model initialization failed.") from e
-
-# Define sentiment labels
-sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
-
 # Log new data to S3
-def log_new_data_to_s3(feedback):
+def create_new_input_file(feedback):
     new_data = {
         "text": feedback.text,
         "stars": feedback.stars
     }
-    new_data_path = os.path.expanduser("~/s3/inference/datasets/")
-    os.makedirs(new_data_path, exist_ok=True)
-    new_data_file = os.path.join(new_data_path, "inputFile.jsonl")
-
+    os.makedirs(new_data_path_local, exist_ok=True)
     # Write to a local file
     try:
-        mode = "a" if os.path.exists(new_data_file) else "w"
-        with open(new_data_file, mode) as f:
+        mode = "a" if os.path.exists(new_data_file_local) else "w"
+        with open(new_data_file_local, mode) as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
             f.write(json.dumps(new_data) + "\n")
         logger.info("New feedback data written to local file.")
     except Exception as e:
         logger.error("Failed to write new feedback data to local file.", exc_info=True)
 
-    # Upload to S3
-    try:
-        s3_client.upload_file(new_data_file, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
-        logger.info("New feedback data uploaded to S3.")
-    except Exception as e:
-        logger.error("Failed to upload new feedback data to S3.", exc_info=True)
-
 # Calculate accuracy
 def calculate_accuracy(predictions, ground_truth):
-    return 1 if predictions == ground_truth else 0
+    max_diff = 4
+    difference = abs(predictions - ground_truth)
+    normalized_diff = min(difference, max_diff)
+    return 1 - (normalized_diff / max_diff)
 
 # Measure CPU utilization
 def get_cpu_utilization():
     return psutil.cpu_percent(interval=1)
 
-def read_power_metrics(output_file):
+def read_power_metrics(report_file):
+    latest_power_consumption = 0.0
     # Read power consumption data from the output CSV
     try:
-        with open(output_file, 'r') as file:
+        with open(report_file, 'r') as file:
+            fcntl.flock(file, fcntl.LOCK_EX)
             reader = csv.reader(file)
             header = next(reader)
             if header != ["timestamp", "power_consumption"]:
@@ -115,23 +103,22 @@ def read_power_metrics(output_file):
             for row in reader:
                 timestamp, power = row
                 latest_power_consumption = float(power)
-        if latest_power_consumption is None:
-            raise ValueError("No power consumption data found in the CSV file")
         logger.info(f"Power consumption: {latest_power_consumption} W")
         return latest_power_consumption
     except Exception as e:
         logger.error("Error reading power metrics from CSV.", exc_info=True)
-        return {}
+        raise
 
 def analyze_feedback(feedback):
+    global profiling_process
+    global output_file
     logger.info("Starting inference for new feedback.")
     try:
-        output_dir = os.path.expanduser("~/s3/inference/powerMetrics/")
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, "power_metrics.csv")
         profiling_process = subprocess.Popen(
-            ['/opt/AMDuProf_5.0-1479/bin/AMDuProfCLI', 'profile', '--application', 'python', '--pid', str(os.getpid()),
-             '--output', output_file],
+            ['/opt/AMDuProf_5.0-1479/bin/AMDuProfCLI', 'profile', '--event', 'power', '--pid', str(os.getpid()),
+             '--report-output', output_file, '--remove-raw-files'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
@@ -140,8 +127,6 @@ def analyze_feedback(feedback):
         logger.error("Error starting AMDuProf profiling.", exc_info=True)
 
     try:
-
-        # Tokenize the input text
         inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
         logger.info("Tokenization complete.")
 
@@ -158,7 +143,7 @@ def analyze_feedback(feedback):
         logger.info(f"feedback score: {feedback_score}")
 
         # Accuracy
-        ground_truth = 1 if feedback.stars >= 3 else 0
+        ground_truth = feedback.stars
         accuracy = calculate_accuracy(predictions, ground_truth)
 
         # Additional metrics
@@ -176,17 +161,20 @@ def analyze_feedback(feedback):
         else:
             overall_sentiment = "Happy"
 
-        profiling_process.terminate()
         logger.info("AMDuProf profiling stopped.")
-
         power_consumption = read_power_metrics(output_file)
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
         return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption
 
     except Exception as e:
         logger.error("Error during inference.", exc_info=True)
-        profiling_process.terminate()
         raise e
+
+    finally:
+        #Profiling process is terminated
+        if profiling_process:
+            profiling_process.terminate()
+            logger.info("AMDuProf profiling stopped.")
 
 # API endpoint
 @app.post("/feedback/analyse", response_model=FeedbackResponse)
@@ -197,7 +185,7 @@ def analyze(feedback: FeedbackRequest):
 
     # Log new data for retraining
     try:
-        log_new_data_to_s3(feedback)
+        create_new_input_file(feedback)
     except Exception as e:
         logger.error("Failed to log new feedback data.", exc_info=True)
 
@@ -215,3 +203,23 @@ def analyze(feedback: FeedbackRequest):
     except Exception as e:
         logger.error("Failed to process feedback.", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred during inference.")
+
+@app.get("/uploadInputFile")
+def uploadNewDataFile():
+    # Upload to S3
+    try:
+        s3_client.upload_file(new_data_file_local, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
+        logger.info("New feedback data uploaded to S3.")
+    except Exception as e:
+        logger.error("Failed to upload new feedback data to S3.", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to upload file.")
+
+
+try:
+    model, tokenizer = download_model_from_s3()
+except Exception as e:
+    logger.critical("Failed to load model. Service cannot start.", exc_info=True)
+    raise RuntimeError("Model initialization failed.") from e
+
+# Sentiment labels
+sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
