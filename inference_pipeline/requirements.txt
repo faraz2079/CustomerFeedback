@@ -6,5 +6,4 @@ pydantic
 torch
 transformers
 psutil
-pyrapl
 uvicorn

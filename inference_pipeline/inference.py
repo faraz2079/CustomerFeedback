@@ -6,9 +6,10 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import boto3
 import os
 import psutil
-import pyRAPL
 import json
 import logging
+import subprocess
+import csv
 
 # Configure logging
 logging.basicConfig(
@@ -103,11 +104,40 @@ def calculate_accuracy(predictions, ground_truth):
 def get_cpu_utilization():
     return psutil.cpu_percent(interval=1)
 
+def read_power_metrics(output_file):
+    # Read power consumption data from the output CSV
+    try:
+        power_data = {}
+        with open(output_file, 'r') as file:
+            reader = csv.reader(file)
+            header = next(reader)
+            if header != ["timestamp", "power_consumption"]:
+                raise ValueError("CSV format is incorrect")
+            for row in reader:
+                timestamp, power = row
+                latest_power_consumption = float(power)
+        if latest_power_consumption is None:
+            raise ValueError("No power consumption data found in the CSV file")
+        logger.info(f"Power consumption: {latest_power_consumption} W")
+        return latest_power_consumption
+    except Exception as e:
+        logger.error("Error reading power metrics from CSV.", exc_info=True)
+        return {}
+
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
-    pyRAPL.setup()
-    rapl = pyRAPL.Measurement(label="inference")
-    rapl.begin()
+    try:
+        output_file = "./power_metrics.csv"  # Specify your CSV file path
+        profiling_process = subprocess.Popen(
+            ['/opt/AMDuProf_5.0-1479/bin/AMDuProfCLI', 'profile', '--application', 'python', '--pid', str(os.getpid()),
+             '--output', output_file],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        logger.info("AMDuProf profiling started, collecting data to %s.", output_file)
+    except Exception as e:
+        logger.error("Error starting AMDuProf profiling.", exc_info=True)
+
     try:
 
         # Tokenize the input text
@@ -145,14 +175,16 @@ def analyze_feedback(feedback):
         else:
             overall_sentiment = "Happy"
 
-        rapl.end()
-        power_metrics = rapl.result.pkg
-        power_consumption = power_metrics
+        profiling_process.terminate()
+        logger.info("AMDuProf profiling stopped.")
+
+        power_consumption = read_power_metrics(output_file)
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
         return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption
 
     except Exception as e:
         logger.error("Error during inference.", exc_info=True)
+        profiling_process.terminate()
         raise e
 
 # API endpoint
