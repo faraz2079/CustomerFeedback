@@ -107,7 +107,6 @@ def get_cpu_utilization():
 def read_power_metrics(output_file):
     # Read power consumption data from the output CSV
     try:
-        power_data = {}
         with open(output_file, 'r') as file:
             reader = csv.reader(file)
             header = next(reader)
@@ -127,7 +126,9 @@ def read_power_metrics(output_file):
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
     try:
-        output_file = "./power_metrics.csv"  # Specify your CSV file path
+        output_dir = os.path.expanduser("~/s3/inference/powerMetrics/")
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, "power_metrics.csv")
         profiling_process = subprocess.Popen(
             ['/opt/AMDuProf_5.0-1479/bin/AMDuProfCLI', 'profile', '--application', 'python', '--pid', str(os.getpid()),
              '--output', output_file],
