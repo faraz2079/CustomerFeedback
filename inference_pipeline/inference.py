@@ -26,7 +26,6 @@ S3_BUCKET = "customerfeedbackmlbucket"
 MODEL_PATH = "models/"
 NEW_DATA_PATH = "datasets/"
 local_model_dir = os.path.expanduser("~/s3/inference/models/")
-output_dir = os.path.expanduser("~/s3/inference/powerMetrics/")
 new_data_path_local = os.path.expanduser("~/s3/inference/datasets/")
 new_data_file_local = os.path.join(new_data_path_local, "inputFile.jsonl")
 s3_client = boto3.client('s3', region_name='eu-central-1')
@@ -103,7 +102,7 @@ def analyze_feedback(feedback):
             outputs = model(**inputs)
             predictions = torch.argmax(outputs.logits, dim=1).item()
             sentiment = sentiment_labels[predictions]
-        logger.info(f"Prediction complete. Sentiment: {sentiment}")
+        logger.info(f"Prediction complete. Prediction: {predictions} and Sentiment: {sentiment}")
 
         # Feedback scoring based on stars
         stars_weight = feedback.stars / 5
@@ -156,6 +155,14 @@ def analyze(feedback: FeedbackRequest):
             sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage = analyze_feedback(
             feedback)
         elapsed_cycles = t.cycles
+        logger.info(f"Final Analysis: " +
+                    f"Sentiment: {sentiment}" +
+                    f"overall sentiment: {overall_sentiment}" +
+                    f"feedback score: {feedback_score}" +
+                    f"accuracy: {accuracy}" +
+                    f"cpu utilization: {cpu_utilization}" +
+                    f"ram usage: {ram_usage}" +
+                    f"cpu cycle: {elapsed_cycles}")
         return FeedbackResponse(
             sentiment=overall_sentiment,
             feedback_score=feedback_score,
