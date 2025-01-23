@@ -7,3 +7,4 @@ class FeedbackResponse(BaseModel):
     cpu_utilization: float
     cpu_cycles: int
     ram_usage: float
+    inference_time: float

@@ -10,6 +10,7 @@ import psutil
 import json
 import logging
 import fcntl
+import time
 
 # Configure logging
 logging.basicConfig(
@@ -138,6 +139,7 @@ def analyze_feedback(feedback):
 # API endpoint
 @app.post("/feedback/analyse", response_model=FeedbackResponse)
 def analyze(feedback: FeedbackRequest):
+    start = time.perf_counter()
     if feedback.stars < 1 or feedback.stars > 5:
         logger.warning("Invalid stars value received.")
         raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
@@ -155,21 +157,25 @@ def analyze(feedback: FeedbackRequest):
             sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage = analyze_feedback(
             feedback)
         elapsed_cycles = t.cycles
+        end = time.perf_counter()
+        execution_time = end - start
         logger.info(f"Final Analysis: " +
                     f"Sentiment: {sentiment}" +
-                    f"overall sentiment: {overall_sentiment}" +
-                    f"feedback score: {feedback_score}" +
-                    f"accuracy: {accuracy}" +
-                    f"cpu utilization: {cpu_utilization}" +
-                    f"ram usage: {ram_usage}" +
-                    f"cpu cycle: {elapsed_cycles}")
+                    f"Overall sentiment: {overall_sentiment}" +
+                    f"Feedback score: {feedback_score}" +
+                    f"Accuracy: {accuracy}" +
+                    f"CPU utilization: {cpu_utilization}" +
+                    f"RAM usage: {ram_usage}" +
+                    f"CPU cycle: {elapsed_cycles}" +
+                    f"Inference time: {execution_time}")
         return FeedbackResponse(
             sentiment=overall_sentiment,
             feedback_score=feedback_score,
             accuracy=accuracy,
             cpu_utilization=cpu_utilization,
             cpu_cycles=elapsed_cycles,
-            ram_usage=ram_usage
+            ram_usage=ram_usage,
+            inference_time=execution_time
         )
     except Exception as e:
         logger.error("Failed to process feedback.", exc_info=True)
