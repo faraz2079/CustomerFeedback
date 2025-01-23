@@ -20,6 +20,7 @@ public class CustomMetricsBinder implements MeterBinder {
 	private volatile float cpuUtilization;
 	private volatile float ramUsage;
 	private volatile int cpuCycle;
+	private volatile float inferenceTime;
 	private final Counter requestCount;
 
 	public CustomMetricsBinder(MeterRegistry meterRegistry, @Value("${app.env:local}") String env) {
@@ -29,25 +30,27 @@ public class CustomMetricsBinder implements MeterBinder {
 		meterRegistry.gauge("cpu_utilization", Tags.of("env", env), this, CustomMetricsBinder::getCpuUtilization);
 		meterRegistry.gauge("ram_usage", Tags.of("env", env), this, CustomMetricsBinder::getRamUsage);
 		meterRegistry.gauge("cpu_cycle", Tags.of("env", env), this, CustomMetricsBinder::getCpuCycle);
+		meterRegistry.gauge("inference_time", Tags.of("env", env), this, CustomMetricsBinder::getInferenceTime);
 		this.requestCount = Counter.builder("request_count").tags("env", env).description("Total count of requests")
 				.register(Metrics.globalRegistry);
 	}
 
-	public void updateMetrics(long latency, float feedbackScore, float accuracy, float cpuUtilization,
-			float ramUsage, int cpuCycle) {
+	public void updateMetrics(long latency, float feedbackScore, float accuracy, float cpuUtilization, float ramUsage,
+			int cpuCycle, float inferenceTime) {
 		this.latency = latency;
 		this.feedbackScore = feedbackScore;
 		this.accuracy = accuracy;
 		this.cpuUtilization = cpuUtilization;
 		this.ramUsage = ramUsage;
 		this.cpuCycle = cpuCycle;
+		this.inferenceTime = inferenceTime;
 	}
 
 	@Override
 	public void bindTo(MeterRegistry registry) {
 	}
-	
+
 	public void incrementRequestCount() {
-        requestCount.increment();
-    }
+		requestCount.increment();
+	}
 }

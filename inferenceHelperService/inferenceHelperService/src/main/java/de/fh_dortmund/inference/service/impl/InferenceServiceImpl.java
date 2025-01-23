@@ -57,7 +57,8 @@ public class InferenceServiceImpl implements InferenceService {
 	private void addMetrics(InferenceResponse response, long latency) {
 		logger.info("Adding inference metrics to the dashboard.");
 		metrics.updateMetrics(latency, response.getFeedbackScore(), response.getAccuracy(),
-				response.getCpuUtilization(), response.getRamUsage(), response.getCpuCycle());
+				response.getCpuUtilization(), response.getRamUsage(), response.getCpuCycle(),
+				response.getInferenceTime());
 	}
 
 }

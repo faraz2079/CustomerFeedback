@@ -13,5 +13,6 @@ public class InferenceResponse {
 	private float cpuUtilization;
 	private float ramUsage;
 	private int cpuCycle;
+	private float inferenceTime;
 
 }
