@@ -11,6 +11,7 @@ public class InferenceResponse {
 	private float feedbackScore;
 	private float accuracy;
 	private float cpuUtilization;
-	private float powerConsumption;
+	private float ramUsage;
+	private int cpuCycle;
 
 }
