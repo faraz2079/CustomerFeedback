@@ -3,13 +3,12 @@ from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from hwcounter import Timer
 import boto3
 import os
 import psutil
 import json
 import logging
-import subprocess
-import csv
 import fcntl
 
 # Configure logging
@@ -88,44 +87,13 @@ def calculate_accuracy(predictions, ground_truth):
 
 # Measure CPU utilization
 def get_cpu_utilization():
-    return psutil.cpu_percent(interval=1)
+    return psutil.Process(os.getpid()).cpu_percent()
 
-def read_power_metrics(report_file):
-    latest_power_consumption = 0.0
-    # Read power consumption data from the output CSV
-    try:
-        with open(report_file, 'r') as file:
-            fcntl.flock(file, fcntl.LOCK_EX)
-            reader = csv.reader(file)
-            header = next(reader)
-            if header != ["timestamp", "power_consumption"]:
-                raise ValueError("CSV format is incorrect")
-            for row in reader:
-                timestamp, power = row
-                latest_power_consumption = float(power)
-        logger.info(f"Power consumption: {latest_power_consumption} W")
-        return latest_power_consumption
-    except Exception as e:
-        logger.error("Error reading power metrics from CSV.", exc_info=True)
-        raise
+def get_ram_usage():
+    return (psutil.virtual_memory()[3])/1000000000
 
 def analyze_feedback(feedback):
-    global profiling_process
-    global output_file
     logger.info("Starting inference for new feedback.")
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, "power_metrics.csv")
-        profiling_process = subprocess.Popen(
-            ['/opt/AMDuProf_5.0-1479/bin/AMDuProfCLI', 'profile', '--event', 'power', '--pid', str(os.getpid()),
-             '--report-output', output_file, '--remove-raw-files'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logger.info("AMDuProf profiling started, collecting data to %s.", output_file)
-    except Exception as e:
-        logger.error("Error starting AMDuProf profiling.", exc_info=True)
-
     try:
         inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
         logger.info("Tokenization complete.")
@@ -146,9 +114,6 @@ def analyze_feedback(feedback):
         ground_truth = feedback.stars
         accuracy = calculate_accuracy(predictions, ground_truth)
 
-        # Additional metrics
-        cpu_utilization = get_cpu_utilization()
-
         # Interpret overall sentiment
         if feedback_score <= 1:
             overall_sentiment = "Disappointed"
@@ -161,20 +126,15 @@ def analyze_feedback(feedback):
         else:
             overall_sentiment = "Happy"
 
-        logger.info("AMDuProf profiling stopped.")
-        power_consumption = read_power_metrics(output_file)
+        # Additional metrics
+        cpu_utilization = get_cpu_utilization()
+        ram_usage = get_ram_usage()
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
-        return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption
+        return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage
 
     except Exception as e:
         logger.error("Error during inference.", exc_info=True)
         raise e
-
-    finally:
-        #Profiling process is terminated
-        if profiling_process:
-            profiling_process.terminate()
-            logger.info("AMDuProf profiling stopped.")
 
 # API endpoint
 @app.post("/feedback/analyse", response_model=FeedbackResponse)
@@ -188,24 +148,28 @@ def analyze(feedback: FeedbackRequest):
         create_new_input_file(feedback)
     except Exception as e:
         logger.error("Failed to log new feedback data.", exc_info=True)
+        raise
 
-    # Perform inference
+    # Perform inference and send response
     try:
-        sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, power_consumption = analyze_feedback(
+        with Timer() as t:
+            sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage = analyze_feedback(
             feedback)
+        elapsed_cycles = t.cycles
         return FeedbackResponse(
             sentiment=overall_sentiment,
             feedback_score=feedback_score,
             accuracy=accuracy,
             cpu_utilization=cpu_utilization,
-            power_consumption=power_consumption
+            cpu_cycles=elapsed_cycles,
+            ram_usage=ram_usage
         )
     except Exception as e:
         logger.error("Failed to process feedback.", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred during inference.")
 
 @app.get("/uploadInputFile")
-def uploadNewDataFile():
+def upload_new_datafile():
     # Upload to S3
     try:
         s3_client.upload_file(new_data_file_local, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")

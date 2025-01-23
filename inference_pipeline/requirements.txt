@@ -6,4 +6,5 @@ pydantic
 torch
 transformers
 psutil
+hwcounter
 uvicorn

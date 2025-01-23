@@ -5,4 +5,5 @@ class FeedbackResponse(BaseModel):
     feedback_score: float
     accuracy: float
     cpu_utilization: float
-    power_consumption: float
+    cpu_cycles: int
+    ram_usage: float
