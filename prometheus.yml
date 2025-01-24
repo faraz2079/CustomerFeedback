@@ -7,19 +7,15 @@ scrape_configs:
     scrape_interval: 1s
     metrics_path: '/actuator/prometheus' 
     static_configs:
-      - targets: ['localhost:8501']
-#  - job_name: 'inferenceHelperServiceEdge'
-#    metrics_path: '/actuator/prometheus'
-#    static_configs:
-#      - targets: [ '172.22.174.240:8501' ]
-#  - job_name: 'inferenceHelperServiceLocal'
-#    metrics_path: '/actuator/prometheus'
-#    static_configs:
-#      - targets: [ '172.22.174.240:8501' ]
-#  - job_name: 'k6LoadTesting'
-#    metrics_path: '/metrics'
-#    static_configs:
-#      - targets: ['172.22.174.240:6565']
-#  - job_name: 'kube-state-metrics'
-#    static_configs:
-#      - targets: [ '<kube-state-metrics-ip>:8080' ]
+      - targets: ['172.22.174.240:8501']
+  - job_name: 'inferenceHelperServiceEdge'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ '172.22.174.240:8701' ]
+  - job_name: 'inferenceHelperServiceCloud'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ '172.22.174.240:8901' ]
+  - job_name: 'kube-state-metrics'
+    static_configs:
+      - targets: [ '172.22.174.240:8080' ]
