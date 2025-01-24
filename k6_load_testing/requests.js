@@ -55,7 +55,7 @@ export default function () {
     'response time < 500ms': (r) => {
         const timingCheck = r.timings.duration < 500;
         if (!timingCheck) {
-            console.error(`Slow response: ${r.timings.duration}ms, Response: ${r.body}`);
+            console.log(`Slow response: ${r.timings.duration}ms, Response: ${r.body}`);
         }
         return timingCheck;
     },
