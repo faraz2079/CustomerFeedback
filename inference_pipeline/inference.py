@@ -172,10 +172,10 @@ def analyze(feedback: FeedbackRequest):
             sentiment=overall_sentiment,
             feedback_score=feedback_score,
             accuracy=accuracy,
-            cpu_utilization=cpu_utilization,
+            cpu_utilization=round(cpu_utilization, 2),
             cpu_cycles=elapsed_cycles,
-            ram_usage=ram_usage,
-            inference_time=execution_time
+            ram_usage=round(ram_usage, 2),
+            inference_time=round(execution_time, 2)
         )
     except Exception as e:
         logger.error("Failed to process feedback.", exc_info=True)

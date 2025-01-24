@@ -19,7 +19,7 @@ public class CustomMetricsBinder implements MeterBinder {
 	private volatile float accuracy;
 	private volatile float cpuUtilization;
 	private volatile float ramUsage;
-	private volatile int cpuCycle;
+	private volatile long cpuCycle;
 	private volatile float inferenceTime;
 	private final Counter requestCount;
 
@@ -36,7 +36,7 @@ public class CustomMetricsBinder implements MeterBinder {
 	}
 
 	public void updateMetrics(long latency, float feedbackScore, float accuracy, float cpuUtilization, float ramUsage,
-			int cpuCycle, float inferenceTime) {
+			long cpuCycle, float inferenceTime) {
 		this.latency = latency;
 		this.feedbackScore = feedbackScore;
 		this.accuracy = accuracy;

@@ -1,7 +1,6 @@
 package de.fh_dortmund.inference.domain.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import lombok.Builder;
 import lombok.Data;
 
@@ -20,7 +19,7 @@ public class InferenceResponse {
 	@JsonProperty("ram_usage")
 	private float ramUsage;
 	@JsonProperty("cpu_cycles")
-	private int cpuCycle;
+	private long cpuCycle;
 	@JsonProperty("inference_time")
 	private float inferenceTime;
 
