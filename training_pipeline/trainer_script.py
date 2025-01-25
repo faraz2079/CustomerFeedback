@@ -1,12 +1,13 @@
 import torch
 from torch.utils.data import Dataset
-from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments, AutoConfig
 from datasets import load_dataset
 import json
 import logging
 import boto3
 import os
 from botocore.exceptions import ClientError
+from textblob import TextBlob
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -50,42 +51,83 @@ class TextDataset(Dataset):
 			"labels": torch.tensor(label, dtype=torch.long)
 		}
 
+def relabel_data(example):
+	logger.info(f"Context: {example['content']}")
+	content = example["content"].lower()
+	if not content.strip():
+		logger.info("Empty content encountered.")
+		example["label"] = 2
+		logger.info(f"Label Assigned: {example['label']}")
+		return example
+	sentences = TextBlob(content).sentences
+	sentiment_score = sum(s.sentiment.polarity for s in sentences) / len(sentences)
+	if sentiment_score < -0.6:  # Strongly negative
+		example["label"] = 0
+	elif -0.6 <= sentiment_score < -0.1:  # Negative
+		example["label"] = 1
+	elif -0.1 <= sentiment_score <= 0.2:  # Neutral
+		example["label"] = 2
+	elif 0.2 < sentiment_score <= 0.6:  # Positive
+		example["label"] = 3
+	else:  # Strongly positive
+		example["label"] = 4
+	logger.info(f"Label Assigned: {example["label"]}")
+	return example
+
 # Function for pseudo-label generation
 def generate_pseudo_labels(model, tokenizer, texts, device, confidence_threshold=0.9):
 	logger.info("Generating pseudo-labels...")
 	model.eval()
 	inputs = tokenizer(texts, truncation=True, padding=True, max_length=256, return_tensors="pt")
 	inputs = {key: val.to(device) for key, val in inputs.items()}
-
 	with torch.no_grad():
 		outputs = model(**inputs)
 		probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
 		max_probs, pseudo_labels = torch.max(probabilities, dim=-1)
 
-	# Filter labels by confidence
-	confident_indices = (max_probs >= confidence_threshold).cpu().numpy()
-	confident_indices = confident_indices.tolist()
-	pseudo_labels = pseudo_labels.tolist()
-	texts = [text for i, text in enumerate(texts) if confident_indices[i] == 1]
-	pseudo_labels = [pseudo_labels[i] for i in range(len(confident_indices)) if confident_indices[i] == 1]
+	# Filter confident labels
+	confident_indices = (max_probs >= confidence_threshold).cpu().numpy().tolist()
+	texts_confident = [text for i, text in enumerate(texts) if confident_indices[i] == 1]
+	pseudo_labels_confident = [pseudo_labels[i].item() for i, is_confident in enumerate(confident_indices) if
+							   is_confident]
 
-	return texts, pseudo_labels
+	# Fallback for non-confident labels
+	texts_non_confident = [text for i, text in enumerate(texts) if confident_indices[i] == 0]
+	pseudo_labels_non_confident = []
+	for text in texts_non_confident:
+		example = {"content": text}
+		pseudo_label = relabel_data(example)["label"]
+		pseudo_labels_non_confident.append(pseudo_label)
 
+	# Combine results
+	texts_final = texts_confident + texts_non_confident
+	pseudo_labels_final = pseudo_labels_confident + pseudo_labels_non_confident
+	return texts_final, pseudo_labels_final
 
 # Function to train the model
 def train_model(data_path, is_initial_training):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+	num_labels = 5
+	id2label = {0: "VERY_NEGATIVE", 1: "NEGATIVE", 2: "NEUTRAL", 3: "POSITIVE", 4: "VERY_POSITIVE"}
+	label2id = {label: idx for idx, label in id2label.items()}
+	config = AutoConfig.from_pretrained(
+		num_labels=num_labels,
+		id2label=id2label,
+		label2id=label2id,
+		problem_type="multi_label_classification"
+	)
 	# Load default dataset for initial training else retrain on new dataset
 	if is_initial_training:
 		logger.info("Initial training: Loading Amazon Polarity dataset.")
 		amazon_dataset = load_dataset("amazon_polarity")
+		logger.info(f"Printing Amazon Dataset: {amazon_dataset}")
+		amazon_dataset = amazon_dataset.map(relabel_data)
 		amazon_texts = amazon_dataset["train"]["content"]
 		amazon_labels = amazon_dataset["train"]["label"]
-		tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
+		tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", model_max_length=256)
 		amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer)
 		logger.info("Training on Amazon Polarity dataset...")
-		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=5)
+		model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config)
 		model.to(device)
 		training_args = TrainingArguments(
 			output_dir=f"{result_dir}",
@@ -96,7 +138,7 @@ def train_model(data_path, is_initial_training):
 			per_device_train_batch_size=16,
 			num_train_epochs=3,
 			logging_dir=f"{logs_dir}",
-			logging_steps=1000,
+			logging_steps=2000,
 		)
 
 		trainer = Trainer(
@@ -127,7 +169,7 @@ def train_model(data_path, is_initial_training):
 				item = json.loads(line)
 				texts.append(item["text"])
 		logger.info("Generating pseudo-labels with pre-trained model...")
-		model = MobileBertForSequenceClassification.from_pretrained(f"{trainer_dir}", num_labels=5)
+		model = MobileBertForSequenceClassification.from_pretrained(f"{trainer_dir}")
 		model.to(device)
 		confident_texts, pseudo_labels = generate_pseudo_labels(model, tokenizer, texts, device,0.9)
 		if len(confident_texts) == 0:
@@ -145,7 +187,7 @@ def train_model(data_path, is_initial_training):
 			per_device_train_batch_size=16,
 			num_train_epochs=3,
 			logging_dir=f"{logs_dir}",
-			logging_steps=1000,
+			logging_steps=2000,
 		)
 
 		retrainer = Trainer(

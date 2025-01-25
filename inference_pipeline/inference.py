@@ -79,18 +79,15 @@ def create_new_input_file(feedback):
         logger.error("Failed to write new feedback data to local file.", exc_info=True)
 
 # Calculate accuracy
-def calculate_accuracy(predictions, ground_truth):
-    max_diff = 4
-    difference = abs(predictions - ground_truth)
-    normalized_diff = min(difference, max_diff)
-    return 1 - (normalized_diff / max_diff)
+def calculate_accuracy(predictions):
+    return predictions / 4.0
 
 # Measure CPU utilization
 def get_cpu_utilization():
-    return psutil.Process(os.getpid()).cpu_percent()
+    return psutil.cpu_percent(interval=None)
 
 def get_ram_usage():
-    return (psutil.virtual_memory()[3])/1000000000
+    return psutil.virtual_memory().used /1000000000
 
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
@@ -111,14 +108,13 @@ def analyze_feedback(feedback):
         logger.info(f"feedback score: {feedback_score}")
 
         # Accuracy
-        ground_truth = feedback.stars
-        accuracy = calculate_accuracy(predictions, ground_truth)
+        accuracy = calculate_accuracy(predictions)
 
         # Interpret overall sentiment
         if feedback_score <= 1:
-            overall_sentiment = "Disappointed"
-        elif feedback_score <= 2:
             overall_sentiment = "Angry"
+        elif feedback_score <= 2:
+            overall_sentiment = "Disappointed"
         elif feedback_score <= 3:
             overall_sentiment = "Neutral"
         elif feedback_score <= 4:
@@ -170,8 +166,8 @@ def analyze(feedback: FeedbackRequest):
                     f"Inference time: {execution_time}")
         return FeedbackResponse(
             sentiment=overall_sentiment,
-            feedback_score=feedback_score,
-            accuracy=accuracy,
+            feedback_score=round(feedback_score, 2),
+            accuracy=round(accuracy, 2),
             cpu_utilization=round(cpu_utilization, 2),
             cpu_cycles=elapsed_cycles,
             ram_usage=round(ram_usage, 2),
