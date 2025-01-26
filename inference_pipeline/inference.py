@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification
 from hwcounter import Timer
 import boto3
 import os
@@ -46,7 +46,7 @@ def download_model_from_s3():
         for obj in response['Contents']:
             file_name = os.path.basename(obj['Key'])
             if file_name:
-                local_file_path = os.path.join(local_model_dir, file_name)
+                local_file_path = os.path.join(f"{local_model_dir}", f"{file_name}")
                 try:
                     s3_client.download_file(S3_BUCKET, obj['Key'], local_file_path)
                     logger.info(f"Successfully downloaded {file_name} from S3.")
@@ -57,8 +57,8 @@ def download_model_from_s3():
         logger.error(f"Error listing files from S3: {e}")
         raise e
     logger.info("Model download complete.")
-    model = AutoModelForSequenceClassification.from_pretrained(local_model_dir)
-    tokenizer = AutoTokenizer.from_pretrained(local_model_dir)
+    model = MobileBertForSequenceClassification.from_pretrained(f"{local_model_dir}")
+    tokenizer = MobileBertTokenizer.from_pretrained(f"{local_model_dir}")
     return model, tokenizer
 
 # Log new data to S3
@@ -92,7 +92,7 @@ def get_ram_usage():
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
     try:
-        inputs = tokenizer(feedback.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
+        inputs = tokenizer(feedback.text.lower(), return_tensors="pt", truncation=True, padding=True, max_length=256)
         logger.info("Tokenization complete.")
 
         # Predict sentiment

@@ -215,12 +215,14 @@ def main():
 	try:
 		s3_client.download_file(S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl", dataset)
 	except ClientError as e:
-		logger.error(f"Error downloading inputFile.jsonl from S3: {e}")
 		if e.response["Error"]["Code"] == "404":
 			logger.error("File not found in S3 (404). Skipping download.")
 		else:
 			logger.error(f"Unexpected S3 error: {e}")
 			raise
+	except Exception as ex:
+		logger.error(f"Unexpected error occured: {ex}")
+		raise
 	is_initial_training = True  # Set this flag to False for retraining
 	train_model(dataset, is_initial_training)
 
