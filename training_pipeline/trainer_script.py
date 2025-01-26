@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments, AutoConfig
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments, MobileBertConfig
 from datasets import load_dataset
 import json
 import logging
@@ -110,7 +110,8 @@ def train_model(data_path, is_initial_training):
 	num_labels = 5
 	id2label = {0: "VERY_NEGATIVE", 1: "NEGATIVE", 2: "NEUTRAL", 3: "POSITIVE", 4: "VERY_POSITIVE"}
 	label2id = {label: idx for idx, label in id2label.items()}
-	config = AutoConfig.from_pretrained(
+	config = MobileBertConfig.from_pretrained(
+		"google/mobilebert-uncased",
 		num_labels=num_labels,
 		id2label=id2label,
 		label2id=label2id,
