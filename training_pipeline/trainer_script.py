@@ -53,6 +53,7 @@ class TextDataset(Dataset):
 
 def relabel_data(example):
 	logger.info(f"Context: {example['content']}")
+	logger.info(f"Initial label is: {example['label']}")
 	content = example["content"].lower()
 	if not content.strip():
 		logger.info("Empty content encountered.")
