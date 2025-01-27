@@ -48,7 +48,7 @@ class TextDataset(Dataset):
 		return {
 			"input_ids": encodings["input_ids"].squeeze(0),
 			"attention_mask": encodings["attention_mask"].squeeze(0),
-			"labels": torch.tensor(label, dtype=torch.long)
+			"labels": torch.tensor(label, dtype=torch.float)
 		}
 
 def relabel_data(example):
@@ -69,9 +69,11 @@ def relabel_data(example):
 		example["label"] = 2
 	elif 0.2 < sentiment_score <= 0.6:  # Positive
 		example["label"] = 3
-	else:  # Strongly positive
+	elif 0.6 < sentiment_score <= 1.0:  # Strongly positive
 		example["label"] = 4
-	logger.info(f"Label Assigned: {example["label"]}")
+	else:
+		raise ValueError(f"Sentiment score out of range: {sentiment_score}")
+	logger.info(f"Label Assigned: {example['label']}")
 	return example
 
 # Function for pseudo-label generation
