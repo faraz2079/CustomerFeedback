@@ -32,6 +32,7 @@ os.makedirs(logs_dir, exist_ok=True)
 
 def encode_labels(labels, num_classes):
     multi_hot_labels = np.zeros((len(labels), num_classes), dtype=np.float32)
+    logger.info(f"num class value is: {num_classes}")
     for i, label_list in enumerate(labels):
         for label in label_list:
             multi_hot_labels[i, label] = 1.0
@@ -40,6 +41,7 @@ def encode_labels(labels, num_classes):
 # Custom Dataset Class
 class TextDataset(Dataset):
     def __init__(self, texts, labels, tokenizer, num_classes, max_length=256):
+        logger.info(f"num classes value intialized: {num_classes}")
         self.texts = texts
         self.labels = encode_labels(labels, num_classes)
         self.tokenizer = tokenizer
