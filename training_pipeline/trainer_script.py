@@ -124,6 +124,7 @@ def train_model(data_path, is_initial_training):
         logger.info("Initial training: Loading Amazon Polarity dataset.")
         amazon_dataset = load_dataset("amazon_polarity")
         logger.info(f"Printing Amazon Dataset: {amazon_dataset}")
+        logger.info(f"Logging unique labels: {amazon_dataset["train"]["label"]}")
         amazon_dataset = amazon_dataset.map(relabel_data)
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
