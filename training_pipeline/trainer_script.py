@@ -30,20 +30,11 @@ os.makedirs(result_dir, exist_ok=True)
 os.makedirs(dataset_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
 
-def encode_labels(labels, num_classes):
-    multi_hot_labels = np.zeros((len(labels), num_classes), dtype=np.float32)
-    logger.info(f"num class value is: {num_classes}")
-    for i, label_list in enumerate(labels):
-        for label in label_list:
-            multi_hot_labels[i, label] = 1.0
-    return multi_hot_labels
-
 # Custom Dataset Class
 class TextDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, num_classes, max_length=256):
-        logger.info(f"num classes value intialized: {num_classes}")
+    def __init__(self, texts, labels, tokenizer, max_length=256):
         self.texts = texts
-        self.labels = encode_labels(labels, num_classes)
+        self.labels = labels
         self.tokenizer = tokenizer
         self.max_length = max_length
 
@@ -58,7 +49,7 @@ class TextDataset(Dataset):
         return {
             "input_ids": encodings["input_ids"].squeeze(0),
             "attention_mask": encodings["attention_mask"].squeeze(0),
-            "labels": torch.tensor(label, dtype=torch.float)
+            "labels": torch.tensor(label, dtype=torch.long)
         }
 
 def relabel_data(example):
@@ -120,15 +111,13 @@ def generate_pseudo_labels(model, tokenizer, texts, device, confidence_threshold
 # Function to train the model
 def train_model(data_path, is_initial_training):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_labels = 5
     id2label = {0: "VERY_NEGATIVE", 1: "NEGATIVE", 2: "NEUTRAL", 3: "POSITIVE", 4: "VERY_POSITIVE"}
     label2id = {label: idx for idx, label in id2label.items()}
     config = MobileBertConfig.from_pretrained(
         "google/mobilebert-uncased",
-        num_labels=num_labels,
         id2label=id2label,
         label2id=label2id,
-        problem_type="multi_label_classification"
+        problem_type="single_label_classification"
     )
     # Load default dataset for initial training else retrain on new dataset
     if is_initial_training:
@@ -139,9 +128,9 @@ def train_model(data_path, is_initial_training):
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
         tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", model_max_length=256)
-        amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer, num_classes=num_labels)
+        amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer)
         logger.info("Training on Amazon Polarity dataset...")
-        model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config)
+        model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config, num_labels=5)
         model.to(device)
         training_args = TrainingArguments(
             output_dir=f"{result_dir}",
