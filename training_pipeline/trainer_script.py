@@ -32,18 +32,22 @@ os.makedirs(logs_dir, exist_ok=True)
 
 # Custom Dataset Class
 class TextDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_length=256):
+    def __init__(self, texts, labels, tokenizer, num_classes: int, max_length=256):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
+        self.num_classes = num_classes
         self.max_length = max_length
+        for label in self.labels:
+            if label < 0 or label >= self.num_classes:
+                raise ValueError(f"Label {label} out of range. It must be between 0 and {self.num_classes - 1}.")
 
     def __len__(self):
         return len(self.texts)
 
     def __getitem__(self, idx):
         text = self.texts[idx]
-        label = self.labels[idx] if self.labels is not None else -1
+        label = self.labels[idx]
         encodings = self.tokenizer(text, truncation=True, padding="max_length", max_length=self.max_length,
                                    return_tensors="pt")
         return {
@@ -63,6 +67,7 @@ def relabel_data(example):
         return example
     sentences = TextBlob(content).sentences
     sentiment_score = sum(s.sentiment.polarity for s in sentences) / len(sentences)
+    logger.info(f"After calculating the sentiment score: {sentiment_score}")
     if sentiment_score < -0.6:  # Strongly negative
         example["label"] = 0
     elif -0.6 <= sentiment_score < -0.1:  # Negative
@@ -129,7 +134,7 @@ def train_model(data_path, is_initial_training):
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
         tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", model_max_length=256)
-        amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer)
+        amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer, num_classes=5, max_length=256)
         logger.info("Training on Amazon Polarity dataset...")
         model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config, num_labels=5)
         model.to(device)
