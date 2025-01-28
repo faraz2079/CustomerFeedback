@@ -1,14 +1,13 @@
 import torch
 from torch.utils.data import Dataset
 from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, Trainer, TrainingArguments, MobileBertConfig
-from datasets import load_dataset
+from datasets import load_dataset, ClassLabel
 import json
 import logging
 import boto3
 import os
 from botocore.exceptions import ClientError
 from textblob import TextBlob
-import numpy as np
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -63,24 +62,24 @@ def relabel_data(example):
     if not content.strip():
         logger.info("Empty content encountered.")
         example["label"] = 2
-        logger.info(f"Label Assigned: {example['label']}")
+        logger.info(f"Label Assigned for Empty content: {example['label']}")
         return example
     sentences = TextBlob(content).sentences
     sentiment_score = sum(s.sentiment.polarity for s in sentences) / len(sentences)
     logger.info(f"After calculating the sentiment score: {sentiment_score}")
-    if sentiment_score < -0.6:  # Strongly negative
+    if sentiment_score < -0.6:  # VERY NEGATIVE
         example["label"] = 0
-    elif -0.6 <= sentiment_score < -0.1:  # Negative
+    elif -0.6 <= sentiment_score < -0.1:  # NEGATIVE
         example["label"] = 1
-    elif -0.1 <= sentiment_score <= 0.2:  # Neutral
+    elif -0.1 <= sentiment_score <= 0.2:  # NEUTRAL
         example["label"] = 2
-    elif 0.2 < sentiment_score <= 0.6:  # Positive
+    elif 0.2 < sentiment_score <= 0.6:  # POSITIVE
         example["label"] = 3
-    elif 0.6 < sentiment_score <= 1.0:  # Strongly positive
+    elif 0.6 < sentiment_score <= 1.0:  # VERY POSITIVE
         example["label"] = 4
     else:
         raise ValueError(f"Sentiment score out of range: {sentiment_score}")
-    logger.info(f"Label Assigned: {example['label']}")
+    logger.info(f"Label Assigned for the content based on sentiment score: {example['label']}")
     return example
 
 # Function for pseudo-label generation
@@ -116,10 +115,11 @@ def generate_pseudo_labels(model, tokenizer, texts, device, confidence_threshold
 # Function to train the model
 def train_model(data_path, is_initial_training):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    id2label = {0: "VERY_NEGATIVE", 1: "NEGATIVE", 2: "NEUTRAL", 3: "POSITIVE", 4: "VERY_POSITIVE"}
+    id2label = {0: "VERY NEGATIVE", 1: "NEGATIVE", 2: "NEUTRAL", 3: "POSITIVE", 4: "VERY POSITIVE"}
     label2id = {label: idx for idx, label in id2label.items()}
     config = MobileBertConfig.from_pretrained(
         "google/mobilebert-uncased",
+        num_labels=5,
         id2label=id2label,
         label2id=label2id,
         problem_type="single_label_classification"
@@ -127,16 +127,18 @@ def train_model(data_path, is_initial_training):
     # Load default dataset for initial training else retrain on new dataset
     if is_initial_training:
         logger.info("Initial training: Loading Amazon Polarity dataset.")
+        new_labels = ClassLabel(num_classes=5, names=["VERY NEGATIVE", "NEGATIVE", "NEUTRAL", "POSITIVE", "VERY POSITIVE"])
         amazon_dataset = load_dataset("amazon_polarity")
+        amazon_dataset = amazon_dataset.cast_column("label", new_labels)
         logger.info(f"Printing Amazon Dataset: {amazon_dataset}")
-        logger.info(f"Logging unique labels: {set(amazon_dataset["train"]["label"])}")
         amazon_dataset = amazon_dataset.map(relabel_data)
+        assert set(amazon_dataset["train"]["label"]).issubset({0, 1, 2, 3, 4}), "Labels out of range."
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
         tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", model_max_length=256)
         amazon_train_dataset = TextDataset(amazon_texts, amazon_labels, tokenizer, num_classes=5, max_length=256)
         logger.info("Training on Amazon Polarity dataset...")
-        model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config, num_labels=5)
+        model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", config=config)
         model.to(device)
         training_args = TrainingArguments(
             output_dir=f"{result_dir}",
@@ -185,7 +187,7 @@ def train_model(data_path, is_initial_training):
             logger.warning("No confident pseudo-labels generated. Aborting retraining.")
             return
         logger.info(f"Retained {len(confident_texts)} out of {len(texts)} samples for retraining.")
-        retrain_dataset = TextDataset(confident_texts, pseudo_labels, tokenizer)
+        retrain_dataset = TextDataset(confident_texts, pseudo_labels, tokenizer, num_classes=5)
 
         retrain_args = TrainingArguments(
             output_dir=f"{result_dir}",
