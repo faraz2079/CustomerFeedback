@@ -7,7 +7,7 @@ import logging
 import boto3
 import os
 from botocore.exceptions import ClientError
-from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -28,6 +28,8 @@ os.makedirs(trainer_dir, exist_ok=True)
 os.makedirs(result_dir, exist_ok=True)
 os.makedirs(dataset_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
+
+analyzer = SentimentIntensityAnalyzer()
 
 # Custom Dataset Class
 class TextDataset(Dataset):
@@ -55,17 +57,19 @@ class TextDataset(Dataset):
             "labels": torch.tensor(label, dtype=torch.long)
         }
 
+def get_vader_sentiment(text):
+    scores = analyzer.polarity_scores(text)
+    return scores["compound"]
+
 def relabel_data(example):
-    logger.info(f"Context: {example['content']}")
-    logger.info(f"Initial label is: {example['label']}")
-    content = example["content"].lower()
-    if not content.strip():
+    logger.info(f"Content is: {example['content']}")
+    content = example["content"].strip().lower()
+    if not content:
         logger.info("Empty content encountered.")
         example["label"] = 2
         logger.info(f"Label Assigned for Empty content: {example['label']}")
         return example
-    sentences = TextBlob(content).sentences
-    sentiment_score = sum(s.sentiment.polarity for s in sentences) / len(sentences)
+    sentiment_score = get_vader_sentiment(content)
     logger.info(f"After calculating the sentiment score: {sentiment_score}")
     if sentiment_score < -0.5:  # VERY NEGATIVE
         example["label"] = 0
@@ -77,8 +81,6 @@ def relabel_data(example):
         example["label"] = 3
     elif 0.5 < sentiment_score <= 1.0:  # VERY POSITIVE
         example["label"] = 4
-    else:
-        raise ValueError(f"Sentiment score out of range: {sentiment_score}")
     logger.info(f"Label Assigned for the content based on sentiment score: {example['label']}")
     return example
 
@@ -94,22 +96,17 @@ def generate_pseudo_labels(model, tokenizer, texts, device, confidence_threshold
         max_probs, pseudo_labels = torch.max(probabilities, dim=-1)
 
     # Filter confident labels
-    confident_indices = (max_probs >= confidence_threshold).cpu().numpy().tolist()
-    texts_confident = [text for i, text in enumerate(texts) if confident_indices[i] == 1]
-    pseudo_labels_confident = [pseudo_labels[i].item() for i, is_confident in enumerate(confident_indices) if
-                               is_confident]
+    confident_indices = (max_probs >= confidence_threshold).nonzero(as_tuple=True)[0].cpu().numpy()
+    texts_confident = [texts[i] for i in confident_indices]
+    pseudo_labels_confident = [pseudo_labels[i].item() for i in confident_indices]
 
     # Fallback for non-confident labels
-    texts_non_confident = [text for i, text in enumerate(texts) if confident_indices[i] == 0]
-    pseudo_labels_non_confident = []
-    for text in texts_non_confident:
-        example = {"content": text}
-        pseudo_label = relabel_data(example)["label"]
-        pseudo_labels_non_confident.append(pseudo_label)
-
+    texts_non_confident = [text for i, text in enumerate(texts) if i not in confident_indices]
+    pseudo_labels_non_confident = [relabel_data({"content": text})["label"] for text in texts_non_confident]
     # Combine results
     texts_final = texts_confident + texts_non_confident
     pseudo_labels_final = pseudo_labels_confident + pseudo_labels_non_confident
+    logger.info(f"Final Text is: {texts_final} and Final pseudo label generated is: {pseudo_labels_final}")
     return texts_final, pseudo_labels_final
 
 # Function to train the model
@@ -187,7 +184,7 @@ def train_model(data_path, is_initial_training):
             logger.warning("No confident pseudo-labels generated. Aborting retraining.")
             return
         logger.info(f"Retained {len(confident_texts)} out of {len(texts)} samples for retraining.")
-        retrain_dataset = TextDataset(confident_texts, pseudo_labels, tokenizer, num_classes=5)
+        retrain_dataset = TextDataset(confident_texts, pseudo_labels, tokenizer, num_classes=5, max_length=256)
 
         retrain_args = TrainingArguments(
             output_dir=f"{result_dir}",

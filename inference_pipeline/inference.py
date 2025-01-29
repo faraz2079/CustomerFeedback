@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 import torch
@@ -11,6 +11,8 @@ import json
 import logging
 import fcntl
 import time
+import threading
+import queue
 
 # Configure logging
 logging.basicConfig(
@@ -31,7 +33,10 @@ new_data_path_local = os.path.expanduser("~/s3/inference/datasets/")
 new_data_file_local = os.path.join(new_data_path_local, "inputFile.jsonl")
 s3_client = boto3.client('s3', region_name='eu-central-1')
 
+system_metrics = {"cpu": 0.0, "ram": 0.0}
+
 app = FastAPI()
+feedback_queue = queue.Queue()
 
 # Load the model and tokenizer from S3
 def download_model_from_s3():
@@ -67,37 +72,46 @@ def create_new_input_file(feedback):
         "text": feedback.text,
         "stars": feedback.stars
     }
+    feedback_queue.put(json.dumps(new_data) + "\n")
+
+def batch_write_feedback():
     os.makedirs(new_data_path_local, exist_ok=True)
-    # Write to a local file
-    try:
-        mode = "a" if os.path.exists(new_data_file_local) else "w"
-        with open(new_data_file_local, mode) as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            f.write(json.dumps(new_data) + "\n")
-        logger.info("New feedback data written to local file.")
-    except Exception as e:
-        logger.error("Failed to write new feedback data to local file.", exc_info=True)
+    while True:
+        try:
+            if not feedback_queue.empty():
+                with open(new_data_file_local, "a") as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    while not feedback_queue.empty():
+                        f.write(feedback_queue.get())
+                    fcntl.flock(f, fcntl.LOCK_UN)
+        except Exception as e:
+            logger.error("Batch write failed.", exc_info=True)
+        time.sleep(5)
+
+threading.Thread(target=batch_write_feedback, daemon=True).start()
+
+def monitor_system():
+    while True:
+        system_metrics["cpu"] = psutil.cpu_percent(interval=1)
+        system_metrics["ram"] = psutil.virtual_memory().used / 1e9
+
+threading.Thread(target=monitor_system, daemon=True).start()
 
 # Calculate accuracy
 def calculate_accuracy(predictions):
     return predictions / 4.0
 
-# Measure CPU utilization
-def get_cpu_utilization():
-    return psutil.cpu_percent(interval=None)
-
-def get_ram_usage():
-    return psutil.virtual_memory().used /1000000000
-
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
     try:
-        inputs = tokenizer(feedback.text.lower(), return_tensors="pt", truncation=True, padding=True, max_length=256)
+        tokens = tokenizer.tokenize(feedback.text.lower())
+        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        inputs = torch.tensor([input_ids]).to(device)
         logger.info("Tokenization complete.")
 
         # Predict sentiment
         with torch.no_grad():
-            outputs = model(**inputs)
+            outputs = model(inputs)
             predictions = torch.argmax(outputs.logits, dim=1).item()
             sentiment = sentiment_labels[predictions]
         logger.info(f"Prediction complete. Prediction: {predictions} and Sentiment: {sentiment}")
@@ -123,8 +137,8 @@ def analyze_feedback(feedback):
             overall_sentiment = "Happy"
 
         # Additional metrics
-        cpu_utilization = get_cpu_utilization()
-        ram_usage = get_ram_usage()
+        cpu_utilization = system_metrics["cpu"]
+        ram_usage = system_metrics["ram"]
         logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
         return sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage
 
@@ -134,18 +148,13 @@ def analyze_feedback(feedback):
 
 # API endpoint
 @app.post("/feedback/analyse", response_model=FeedbackResponse)
-def analyze(feedback: FeedbackRequest):
+def analyze(feedback: FeedbackRequest, background_tasks: BackgroundTasks):
     start = time.perf_counter()
     if feedback.stars < 1 or feedback.stars > 5:
         logger.warning("Invalid stars value received.")
         raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
 
-    # Log new data for retraining
-    try:
-        create_new_input_file(feedback)
-    except Exception as e:
-        logger.error("Failed to log new feedback data.", exc_info=True)
-        raise
+    background_tasks.add_task(create_new_input_file, feedback)
 
     # Perform inference and send response
     try:
@@ -190,6 +199,8 @@ def upload_new_datafile():
 
 try:
     model, tokenizer = download_model_from_s3()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model.to(device)
 except Exception as e:
     logger.critical("Failed to load model. Service cannot start.", exc_info=True)
     raise RuntimeError("Model initialization failed.") from e
