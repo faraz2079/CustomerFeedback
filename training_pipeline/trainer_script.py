@@ -67,15 +67,15 @@ def relabel_data(example):
     sentences = TextBlob(content).sentences
     sentiment_score = sum(s.sentiment.polarity for s in sentences) / len(sentences)
     logger.info(f"After calculating the sentiment score: {sentiment_score}")
-    if sentiment_score < -0.6:  # VERY NEGATIVE
+    if sentiment_score < -0.5:  # VERY NEGATIVE
         example["label"] = 0
-    elif -0.6 <= sentiment_score < -0.1:  # NEGATIVE
+    elif -0.5 <= sentiment_score < -0.1:  # NEGATIVE
         example["label"] = 1
-    elif -0.1 <= sentiment_score <= 0.2:  # NEUTRAL
+    elif -0.1 <= sentiment_score <= 0.1:  # NEUTRAL
         example["label"] = 2
-    elif 0.2 < sentiment_score <= 0.6:  # POSITIVE
+    elif 0.1 < sentiment_score <= 0.5:  # POSITIVE
         example["label"] = 3
-    elif 0.6 < sentiment_score <= 1.0:  # VERY POSITIVE
+    elif 0.5 < sentiment_score <= 1.0:  # VERY POSITIVE
         example["label"] = 4
     else:
         raise ValueError(f"Sentiment score out of range: {sentiment_score}")
