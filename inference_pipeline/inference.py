@@ -75,7 +75,6 @@ def create_new_input_file(feedback):
     feedback_queue.put(json.dumps(new_data) + "\n")
 
 def batch_write_feedback():
-    os.makedirs(new_data_path_local, exist_ok=True)
     while True:
         try:
             if not feedback_queue.empty():
@@ -88,6 +87,7 @@ def batch_write_feedback():
             logger.error("Batch write failed.", exc_info=True)
         time.sleep(5)
 
+os.makedirs(new_data_path_local, exist_ok=True)
 threading.Thread(target=batch_write_feedback, daemon=True).start()
 
 def monitor_system():
