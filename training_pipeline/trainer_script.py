@@ -127,9 +127,7 @@ def train_model(data_path, is_initial_training):
         new_labels = ClassLabel(num_classes=5, names=["VERY NEGATIVE", "NEGATIVE", "NEUTRAL", "POSITIVE", "VERY POSITIVE"])
         amazon_dataset = load_dataset("amazon_polarity")
         amazon_dataset = amazon_dataset.cast_column("label", new_labels)
-        logger.info(f"Printing Amazon Dataset: {amazon_dataset}")
         amazon_dataset = amazon_dataset.map(relabel_data)
-        assert set(amazon_dataset["train"]["label"]).issubset({0, 1, 2, 3, 4}), "Labels out of range."
         amazon_texts = amazon_dataset["train"]["content"]
         amazon_labels = amazon_dataset["train"]["label"]
         tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", model_max_length=256)
@@ -143,7 +141,7 @@ def train_model(data_path, is_initial_training):
             save_total_limit=2,
             eval_strategy="no",
             learning_rate=2e-5,
-            per_device_train_batch_size=100,
+            per_device_train_batch_size=110,
             num_train_epochs=3,
             logging_dir=f"{logs_dir}",
             logging_steps=2000,
@@ -192,7 +190,7 @@ def train_model(data_path, is_initial_training):
             save_total_limit=2,
             eval_strategy="no",
             learning_rate=2e-5,
-            per_device_train_batch_size=16,
+            per_device_train_batch_size=110,
             num_train_epochs=3,
             logging_dir=f"{logs_dir}",
             logging_steps=2000,
