@@ -199,7 +199,7 @@ def upload_new_datafile():
 
 try:
     model, tokenizer = download_model_from_s3()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
     model = model.to(device)
 except Exception as e:
     logger.critical("Failed to load model. Service cannot start.", exc_info=True)

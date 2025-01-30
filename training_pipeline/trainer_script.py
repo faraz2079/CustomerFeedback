@@ -141,10 +141,10 @@ def train_model(data_path, is_initial_training):
             save_total_limit=2,
             eval_strategy="no",
             learning_rate=2e-5,
-            per_device_train_batch_size=110,
+            per_device_train_batch_size=100,
             num_train_epochs=3,
             logging_dir=f"{logs_dir}",
-            logging_steps=2000,
+            logging_steps=1000,
         )
 
         trainer = Trainer(
@@ -190,10 +190,10 @@ def train_model(data_path, is_initial_training):
             save_total_limit=2,
             eval_strategy="no",
             learning_rate=2e-5,
-            per_device_train_batch_size=110,
+            per_device_train_batch_size=100,
             num_train_epochs=3,
             logging_dir=f"{logs_dir}",
-            logging_steps=2000,
+            logging_steps=1000,
         )
 
         retrainer = Trainer(
