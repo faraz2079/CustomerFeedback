@@ -100,9 +100,9 @@ threading.Thread(target=monitor_system, daemon=True).start()
 # Calculate accuracy
 def calculate_accuracy(feedback_score):
     if 0 < feedback_score < 1.0:
-        return 1 - feedback_score
-    elif 1.0 < feedback_score < 5.0:
-        return 1 - (feedback_score / 5.0)
+        return feedback_score
+    elif 1.0 <= feedback_score < 5.0:
+        return feedback_score / 5.0
     else:
         return 1.0
 
