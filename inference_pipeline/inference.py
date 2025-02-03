@@ -98,8 +98,13 @@ def monitor_system():
 threading.Thread(target=monitor_system, daemon=True).start()
 
 # Calculate accuracy
-def calculate_accuracy(predictions):
-    return predictions / 4.0
+def calculate_accuracy(feedback_score):
+    if 0 < feedback_score < 1.0:
+        return 1 - feedback_score
+    elif 1.0 < feedback_score < 5.0:
+        return 1 - (feedback_score / 5.0)
+    else:
+        return 1.0
 
 def analyze_feedback(feedback):
     logger.info("Starting inference for new feedback.")
@@ -122,7 +127,7 @@ def analyze_feedback(feedback):
         logger.info(f"feedback score: {feedback_score}")
 
         # Accuracy
-        accuracy = calculate_accuracy(predictions)
+        accuracy = calculate_accuracy(feedback_score)
 
         # Interpret overall sentiment
         if feedback_score <= 1:
