@@ -1,11 +1,13 @@
 global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
+  scrape_interval: 3s
+  scrape_timeout: 3s
+  evaluation_interval: 3s
 
 scrape_configs:
   - job_name: 'inferenceHelperServiceLocal'
     scrape_interval: 1s
-    metrics_path: '/actuator/prometheus' 
+    scrape_timeout: 1s
+    metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['172.22.174.240:8501']
   - job_name: 'inferenceHelperServiceEdge'
@@ -17,5 +19,6 @@ scrape_configs:
     static_configs:
       - targets: [ '172.22.174.240:8901' ]
   - job_name: 'kube-state-metrics'
+    metrics_path: '/metrics'
     static_configs:
-      - targets: [ '172.22.174.240:8080' ]
+      - targets: ['172.22.174.240:32000']
