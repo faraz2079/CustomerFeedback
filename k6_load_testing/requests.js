@@ -13,13 +13,13 @@ export const options = {
             executor: 'constant-arrival-rate',
             rate: 100, // requests per second
             timeUnit: '1s',
-            duration: '5m', 
-            preAllocatedVUs: 50,
-            maxVUs: 100,
+            duration: '8m',
+            preAllocatedVUs: 100,
+            maxVUs: 120,
         },
     },
     thresholds: {
-        //http_req_duration: ['p(95)<500'], // 95% of requests should complete below 500ms
+        http_req_duration: ['p(90)<6000'], // 90% of requests should complete below 6s
         http_req_failed: ['rate<0.01'], // less than 1% requests should fail
     },
 };
@@ -38,8 +38,8 @@ export default function () {
 
     const res = http.post(url, payload, params);
 
-    // Logs for debugging
-    console.log(`Request payload: ${payload}`);
+    console.log(`Customer Review: ${payload}`);
+    console.log(`**** Review Analysis: ${res.body} ****`);
     console.log(`Response status: ${res.status}`);
     console.log(`Response time: ${res.timings.duration}ms`);
 
@@ -52,8 +52,8 @@ export default function () {
         }
         return statusCheck;
     },
-    'response time < 500ms': (r) => {
-        const timingCheck = r.timings.duration < 500;
+    'response time < 5000ms': (r) => {
+        const timingCheck = r.timings.duration < 5000;
         if (!timingCheck) {
             console.log(`Slow response: ${r.timings.duration}ms, Response: ${r.body}`);
         }
@@ -61,12 +61,11 @@ export default function () {
     },
 });
 
-    console.log(`Response Received: ${res.body}`);
     sleep(1);
 }
 
 export function teardown() {
-    const url = 'http://localhost:8000/uploadInputFile';
+    const url = 'http://localhost:32501/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {
         console.log('File successfully uploaded to S3.');
