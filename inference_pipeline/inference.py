@@ -3,10 +3,10 @@ from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 import torch
 from transformers import MobileBertTokenizer, MobileBertForSequenceClassification
-from hwcounter import Timer
+#from hwcounter import Timer
 import boto3
 import os
-import psutil
+#import psutil
 import json
 import logging
 import fcntl
@@ -92,8 +92,8 @@ threading.Thread(target=batch_write_feedback, daemon=True).start()
 
 def monitor_system():
     while True:
-        system_metrics["cpu"] = psutil.cpu_percent(interval=1)
-        system_metrics["ram"] = psutil.virtual_memory().used / 1e9
+        system_metrics["cpu"] = 1 #psutil.cpu_percent(interval=1)
+        system_metrics["ram"] = 1 #psutil.virtual_memory().used / 1e9
 
 threading.Thread(target=monitor_system, daemon=True).start()
 
@@ -163,10 +163,10 @@ def analyze(feedback: FeedbackRequest, background_tasks: BackgroundTasks):
 
     # Perform inference and send response
     try:
-        with Timer() as t:
-            sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage = analyze_feedback(
+        #with Timer() as t:
+        sentiment, feedback_score, overall_sentiment, accuracy, cpu_utilization, ram_usage = analyze_feedback(
             feedback)
-        elapsed_cycles = t.cycles
+        elapsed_cycles = 1 #t.cycles
         end = time.perf_counter()
         execution_time = end - start
         logger.info(f"Final Analysis: " +

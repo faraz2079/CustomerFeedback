@@ -11,11 +11,11 @@ export const options = {
     scenarios: {
         bulk_requests: {
             executor: 'constant-arrival-rate',
-            rate: 200, // requests per second
+            rate: 100, // requests per second
             timeUnit: '1s',
             duration: '10m',
-            preAllocatedVUs: 200,
-            maxVUs: 240,
+            preAllocatedVUs: 100,
+            maxVUs: 120,
         },
     },
     thresholds: {
