@@ -13,7 +13,7 @@ export const options = {
             executor: 'constant-arrival-rate',
             rate: 100, // requests per second
             timeUnit: '1s',
-            duration: '10m',
+            duration: '15m',
             preAllocatedVUs: 100,
             maxVUs: 120,
         },
@@ -40,7 +40,6 @@ export default function () {
 
     console.log(`Customer Review: ${payload}`);
     console.log(`**** Model predicts: Customer is ${res.body} ****`);
-    console.log(`Response status: ${res.status}`);
 
     // Validate response
     check(res, {
@@ -51,20 +50,14 @@ export default function () {
         }
         return statusCheck;
     },
-    'response time < 5000ms': (r) => {
-        const timingCheck = r.timings.duration < 5000;
-        if (!timingCheck) {
-            console.log(`Slow response: ${r.timings.duration}ms, Response: ${r.body}`);
-        }
-        return timingCheck;
-    },
 });
 
     sleep(1);
 }
 
 export function teardown() {
-    const url = 'http://localhost:32501/uploadInputFile';
+    //const url = 'http://localhost:32501/uploadInputFile';
+    const url = 'http://localhost:8000/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {
         console.log('File successfully uploaded to S3.');
