@@ -11,7 +11,7 @@ import json
 import logging
 import fcntl
 import time
-import threading
+#import threading
 import queue
 
 # Configure logging
@@ -85,17 +85,17 @@ def batch_write_feedback():
                     fcntl.flock(f, fcntl.LOCK_UN)
         except Exception as e:
             logger.error("Batch write failed.", exc_info=True)
-        time.sleep(5)
+        #time.sleep(5)
 
 os.makedirs(new_data_path_local, exist_ok=True)
-threading.Thread(target=batch_write_feedback, daemon=True).start()
+#threading.Thread(target=batch_write_feedback, daemon=True).start()
 
 def monitor_system():
     while True:
         system_metrics["cpu"] = 1 #psutil.cpu_percent(interval=1)
         system_metrics["ram"] = 1 #psutil.virtual_memory().used / 1e9
 
-threading.Thread(target=monitor_system, daemon=True).start()
+#threading.Thread(target=monitor_system, daemon=True).start()
 
 # Calculate accuracy
 def calculate_accuracy(feedback_score):
@@ -159,7 +159,8 @@ def analyze(feedback: FeedbackRequest, background_tasks: BackgroundTasks):
         logger.warning("Invalid stars value received.")
         raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
 
-    background_tasks.add_task(create_new_input_file, feedback)
+    #background_tasks.add_task(create_new_input_file, feedback)
+    create_new_input_file(feedback)
 
     # Perform inference and send response
     try:
@@ -195,6 +196,7 @@ def analyze(feedback: FeedbackRequest, background_tasks: BackgroundTasks):
 def upload_new_datafile():
     # Upload to S3
     try:
+        batch_write_feedback()
         s3_client.upload_file(new_data_file_local, S3_BUCKET, f"{NEW_DATA_PATH}inputFile.jsonl")
         logger.info("New feedback data uploaded to S3.")
     except Exception as e:

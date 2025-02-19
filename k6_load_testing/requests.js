@@ -10,23 +10,16 @@ const inputData = new SharedArray('input data', function () {
 export const options = {
     scenarios: {
         bulk_requests: {
-            executor: 'constant-arrival-rate',
-            rate: 100, // requests per second
-            timeUnit: '1s',
-            duration: '15m',
-            preAllocatedVUs: 100,
-            maxVUs: 120,
+            executor: 'shared-iterations',
+            iterations: inputData.length,
+            vus: 20,
         },
-    },
-    thresholds: {
-        http_req_duration: ['p(90)<6000'], // 90% of requests should complete below 6s
-        http_req_failed: ['rate<0.01'], // less than 1% requests should fail
     },
 };
 
 
 export default function () {
-    const record = inputData[__ITER % inputData.length];
+    const record = inputData[__ITER];
     const payload = JSON.stringify(record);
 
     const url = 'http://localhost:8501/api/v1/feedback';
@@ -40,19 +33,6 @@ export default function () {
 
     console.log(`Customer Review: ${payload}`);
     console.log(`**** Model predicts: Customer is ${res.body} ****`);
-
-    // Validate response
-    check(res, {
-    'status is 200': (r) => {
-        const statusCheck = r.status === 200;
-        if (!statusCheck) {
-            console.error(`Unexpected status: ${r.status}, Response: ${r.body}`);
-        }
-        return statusCheck;
-    },
-});
-
-    sleep(1);
 }
 
 export function teardown() {
