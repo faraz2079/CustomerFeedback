@@ -11,11 +11,11 @@ export const options = {
     scenarios: {
         bulk_requests: {
             executor: 'constant-arrival-rate',
-            rate: 100, // requests per second
+            rate: 200, // requests per second
             timeUnit: '1s',
             duration: '10m',
-            preAllocatedVUs: 100,
-            maxVUs: 120,
+            preAllocatedVUs: 200,
+            maxVUs: 240,
         },
     },
     thresholds: {
@@ -39,9 +39,8 @@ export default function () {
     const res = http.post(url, payload, params);
 
     console.log(`Customer Review: ${payload}`);
-    console.log(`**** Review Analysis: ${res.body} ****`);
+    console.log(`**** Model predicts: Customer is ${res.body} ****`);
     console.log(`Response status: ${res.status}`);
-    console.log(`Response time: ${res.timings.duration}ms`);
 
     // Validate response
     check(res, {

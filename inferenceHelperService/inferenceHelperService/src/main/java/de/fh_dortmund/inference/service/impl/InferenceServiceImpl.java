@@ -1,14 +1,12 @@
 package de.fh_dortmund.inference.service.impl;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-
+import java.time.Instant;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
-
 import de.fh_dortmund.inference.domain.component.CustomMetricsBinder;
 import de.fh_dortmund.inference.domain.request.InferenceRequest;
 import de.fh_dortmund.inference.domain.response.InferenceResponse;
@@ -36,14 +34,15 @@ public class InferenceServiceImpl implements InferenceService {
 	public String analyseFeedback(InferenceRequest request) throws Exception {
 		try {
 			logger.info("Preparing request for inference:" + request.getText());
-			LocalDateTime timeStart = LocalDateTime.now();
+			Instant timeStart = Instant.now();
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<InferenceRequest> inferenceEntity = new HttpEntity<InferenceRequest>(request, headers);
 			ResponseEntity<InferenceResponse> response = rest.exchange(inferenceUrl, HttpMethod.POST, inferenceEntity,
 					InferenceResponse.class);
-			LocalDateTime timeEnd = LocalDateTime.now();
+			Instant timeEnd = Instant.now();
 			long latency = Duration.between(timeStart, timeEnd).toMillis();
+			logger.info("Latency of the request is: " + latency + "ms");
 			if (response.getBody() != null) {
 				addMetrics(response.getBody(), latency);
 				return response.getBody().getSentiment();
