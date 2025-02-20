@@ -1,4 +1,3 @@
-import aiofiles
 from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 from fastapi import FastAPI, HTTPException
@@ -53,7 +52,7 @@ class FeedbackAnalysis(threading.Thread):
         while True:
             try:
                 if not self.feedback_queue.empty():
-                    async with aiofiles.open(self.new_data_file_local, "a") as f:
+                    with open(self.new_data_file_local, "a") as f:
                         while not self.feedback_queue.empty():
                             feedback_data = self.feedback_queue.get()
                             f.write(feedback_data)
