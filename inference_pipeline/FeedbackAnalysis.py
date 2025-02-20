@@ -1,7 +1,6 @@
 from feedback_request_model import FeedbackRequest
 from feedback_response_model import FeedbackResponse
 from fastapi import FastAPI, HTTPException
-import threading
 import time
 import torch
 import json
@@ -9,9 +8,8 @@ import json
 # Sentiment labels
 sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
 
-class FeedbackAnalysis(threading.Thread):
+class FeedbackAnalysis:
     def __init__(self, app: FastAPI, feedback_queue, new_data_file_local, logger, model, tokenizer, s3_client, s3_bucket, new_data_path, device):
-        super().__init__(daemon=True)
         self.app = app
         self.feedback_queue = feedback_queue
         self.new_data_file_local = new_data_file_local
@@ -27,19 +25,12 @@ class FeedbackAnalysis(threading.Thread):
 
     def initialize_routes(self):
         @self.app.post("/feedback/analyse", response_model=FeedbackResponse)
-        async def analyze(feedback:FeedbackRequest):
-            return await self.analyze(feedback)
+        def analyze(feedback:FeedbackRequest):
+            return self.analyze(feedback)
 
         @self.app.get("/uploadInputFile")
-        async def upload_new_datafile():
-            return await self.upload_new_datafile()
-
-    def run(self):
-        self.logger.info("FeedbackAnalysis thread started.")
-
-    def stop(self):
-        self.running = False
-        self.join()
+        def upload_new_datafile():
+            return self.upload_new_datafile()
 
     # Log new data to S3
     def create_new_input_file(self, feedback):
@@ -50,6 +41,7 @@ class FeedbackAnalysis(threading.Thread):
         self.feedback_queue.put(json.dumps(new_data) + "\n")
 
     def write_to_file(self):
+        self.logger.info("Write feedback")
         while True:
             try:
                 if not self.feedback_queue.empty():
@@ -57,8 +49,8 @@ class FeedbackAnalysis(threading.Thread):
                         while not self.feedback_queue.empty():
                             feedback_data = self.feedback_queue.get()
                             f.write(feedback_data)
-            except Exception:
-                self.logger.error("write failed.", exc_info=True)
+            except Exception as ex:
+                self.logger.error(f"write failed. {ex}", exc_info=True)
 
     # Calculate accuracy
     @staticmethod
@@ -70,7 +62,7 @@ class FeedbackAnalysis(threading.Thread):
         else:
             return 1.0
 
-    async def analyze_feedback(self,feedback):
+    def analyze_feedback(self,feedback):
         self.logger.info("Starting inference for new feedback.")
         try:
             tokens = self.tokenizer.tokenize(feedback.text.lower())
@@ -112,7 +104,7 @@ class FeedbackAnalysis(threading.Thread):
             self.logger.error("Error during inference.", exc_info=True)
             raise e
 
-    async def analyze(self, feedback):
+    def analyze(self, feedback):
         start = time.perf_counter()
         if feedback.stars < 1 or feedback.stars > 5:
             self.logger.warning("Invalid stars value received.")
@@ -122,7 +114,7 @@ class FeedbackAnalysis(threading.Thread):
 
         # Perform inference and send response
         try:
-            sentiment, feedback_score, overall_sentiment, accuracy = await self.analyze_feedback(
+            sentiment, feedback_score, overall_sentiment, accuracy = self.analyze_feedback(
                 feedback)
             end = time.perf_counter()
             execution_time = end - start

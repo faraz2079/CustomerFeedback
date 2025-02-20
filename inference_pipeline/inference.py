@@ -62,8 +62,7 @@ try:
     model, tokenizer = download_model_from_s3()
     device = "cpu"
     model = model.to(device)
-    feedback_analysis_thread = FeedbackAnalysis(app=app, feedback_queue=feedback_queue, new_data_file_local=new_data_file_local, logger=logger, model=model, tokenizer=tokenizer, s3_client=s3_client, s3_bucket=S3_BUCKET, new_data_path=NEW_DATA_PATH, device=device)
-    feedback_analysis_thread.start()
+    feedback_analysis = FeedbackAnalysis(app=app, feedback_queue=feedback_queue, new_data_file_local=new_data_file_local, logger=logger, model=model, tokenizer=tokenizer, s3_client=s3_client, s3_bucket=S3_BUCKET, new_data_path=NEW_DATA_PATH, device=device)
 except Exception as e:
     logger.critical("Failed to load model. Service cannot start.", exc_info=True)
     raise RuntimeError("Model initialization failed.") from e
