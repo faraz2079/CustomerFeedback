@@ -3,7 +3,7 @@ from transformers import MobileBertTokenizer, MobileBertForSequenceClassificatio
 import boto3
 import os
 import logging
-from FeedbackAnalysis import FeedbackAnalysis
+from feedback_analysis import FeedbackAnalysis
 
 
 # Configure logging

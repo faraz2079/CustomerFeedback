@@ -21,7 +21,6 @@ class FeedbackAnalysis:
         self.S3_BUCKET = s3_bucket
         self.NEW_DATA_PATH = new_data_path
         self.device = device
-        self.running = True
         self.initialize_routes()
 
     def initialize_routes(self):
@@ -43,16 +42,14 @@ class FeedbackAnalysis:
         feedback_queue.put(json.dumps(new_data) + "\n")
 
     def write_to_file(self):
-        self.logger.info("Write feedback")
-        while True:
-            try:
-                if not feedback_queue.empty():
-                    with open(self.new_data_file_local, "a") as f:
-                        while not feedback_queue.empty():
-                            feedback_data = feedback_queue.get()
-                            f.write(feedback_data)
-            except Exception as ex:
-                self.logger.error(f"write failed. {ex}", exc_info=True)
+        self.logger.info(f"Write feedback requests if queue is not empty- {feedback_queue.empty()}")
+        try:
+            if not feedback_queue.empty():
+                with open(self.new_data_file_local, "a") as f:
+                    while not feedback_queue.empty():
+                        f.write(feedback_queue.get())
+        except Exception as ex:
+            self.logger.error(f"write failed. {ex}", exc_info=True)
 
     # Calculate accuracy
     @staticmethod
