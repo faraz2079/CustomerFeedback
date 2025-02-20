@@ -17,9 +17,6 @@ public class CustomMetricsBinder implements MeterBinder {
 	private volatile long latency;
 	private volatile float feedbackScore;
 	private volatile float accuracy;
-	private volatile float cpuUtilization;
-	private volatile float ramUsage;
-	private volatile long cpuCycle;
 	private volatile float inferenceTime;
 	private final Counter requestCount;
 
@@ -27,22 +24,15 @@ public class CustomMetricsBinder implements MeterBinder {
 		meterRegistry.gauge("latency", Tags.of("env", env), this, CustomMetricsBinder::getLatency);
 		meterRegistry.gauge("feedback_score", Tags.of("env", env), this, CustomMetricsBinder::getFeedbackScore);
 		meterRegistry.gauge("accuracy", Tags.of("env", env), this, CustomMetricsBinder::getAccuracy);
-		meterRegistry.gauge("cpu_utilization", Tags.of("env", env), this, CustomMetricsBinder::getCpuUtilization);
-		meterRegistry.gauge("ram_usage", Tags.of("env", env), this, CustomMetricsBinder::getRamUsage);
-		meterRegistry.gauge("cpu_cycle", Tags.of("env", env), this, CustomMetricsBinder::getCpuCycle);
 		meterRegistry.gauge("inference_time", Tags.of("env", env), this, CustomMetricsBinder::getInferenceTime);
 		this.requestCount = Counter.builder("request_count").tags("env", env).description("Total count of requests")
 				.register(Metrics.globalRegistry);
 	}
 
-	public void updateMetrics(long latency, float feedbackScore, float accuracy, float cpuUtilization, float ramUsage,
-			long cpuCycle, float inferenceTime) {
+	public void updateMetrics(long latency, float feedbackScore, float accuracy, float inferenceTime) {
 		this.latency = latency;
 		this.feedbackScore = feedbackScore;
 		this.accuracy = accuracy;
-		this.cpuUtilization = cpuUtilization;
-		this.ramUsage = ramUsage;
-		this.cpuCycle = cpuCycle;
 		this.inferenceTime = inferenceTime;
 	}
 
