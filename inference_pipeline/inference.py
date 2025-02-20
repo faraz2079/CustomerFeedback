@@ -3,7 +3,6 @@ from transformers import MobileBertTokenizer, MobileBertForSequenceClassificatio
 import boto3
 import os
 import logging
-import queue
 from FeedbackAnalysis import FeedbackAnalysis
 
 
@@ -27,7 +26,6 @@ new_data_file_local = os.path.join(new_data_path_local, "inputFile.jsonl")
 s3_client = boto3.client('s3', region_name='eu-central-1')
 
 app = FastAPI()
-feedback_queue = queue.Queue()
 os.makedirs(new_data_path_local, exist_ok=True)
 
 # Load the model and tokenizer from S3
@@ -62,7 +60,7 @@ try:
     model, tokenizer = download_model_from_s3()
     device = "cpu"
     model = model.to(device)
-    feedback_analysis = FeedbackAnalysis(app=app, feedback_queue=feedback_queue, new_data_file_local=new_data_file_local, logger=logger, model=model, tokenizer=tokenizer, s3_client=s3_client, s3_bucket=S3_BUCKET, new_data_path=NEW_DATA_PATH, device=device)
+    feedback_analysis = FeedbackAnalysis(app=app, new_data_file_local=new_data_file_local, logger=logger, model=model, tokenizer=tokenizer, s3_client=s3_client, s3_bucket=S3_BUCKET, new_data_path=NEW_DATA_PATH, device=device)
 except Exception as e:
     logger.critical("Failed to load model. Service cannot start.", exc_info=True)
-    raise RuntimeError("Model initialization failed.") from e
+    raise RuntimeError("Model initialization failed.")

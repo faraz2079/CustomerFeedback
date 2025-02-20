@@ -4,14 +4,15 @@ from fastapi import FastAPI, HTTPException
 import time
 import torch
 import json
+import queue
 
 # Sentiment labels
 sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
+feedback_queue = queue.Queue()
 
 class FeedbackAnalysis:
-    def __init__(self, app: FastAPI, feedback_queue, new_data_file_local, logger, model, tokenizer, s3_client, s3_bucket, new_data_path, device):
+    def __init__(self, app: FastAPI, new_data_file_local, logger, model, tokenizer, s3_client, s3_bucket, new_data_path, device):
         self.app = app
-        self.feedback_queue = feedback_queue
         self.new_data_file_local = new_data_file_local
         self.logger = logger
         self.model = model
@@ -33,21 +34,22 @@ class FeedbackAnalysis:
             return self.upload_new_datafile()
 
     # Log new data to S3
-    def create_new_input_file(self, feedback):
+    @staticmethod
+    def create_new_input_file(feedback):
         new_data = {
             "text": feedback.text,
             "stars": feedback.stars
         }
-        self.feedback_queue.put(json.dumps(new_data) + "\n")
+        feedback_queue.put(json.dumps(new_data) + "\n")
 
     def write_to_file(self):
         self.logger.info("Write feedback")
         while True:
             try:
-                if not self.feedback_queue.empty():
+                if not feedback_queue.empty():
                     with open(self.new_data_file_local, "a") as f:
-                        while not self.feedback_queue.empty():
-                            feedback_data = self.feedback_queue.get()
+                        while not feedback_queue.empty():
+                            feedback_data = feedback_queue.get()
                             f.write(feedback_data)
             except Exception as ex:
                 self.logger.error(f"write failed. {ex}", exc_info=True)
@@ -110,7 +112,7 @@ class FeedbackAnalysis:
             self.logger.warning("Invalid stars value received.")
             raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
 
-        self.create_new_input_file(feedback)
+        FeedbackAnalysis.create_new_input_file(feedback)
 
         # Perform inference and send response
         try:
