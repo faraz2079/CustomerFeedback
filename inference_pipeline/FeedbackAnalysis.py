@@ -49,14 +49,14 @@ class FeedbackAnalysis(threading.Thread):
         }
         self.feedback_queue.put(json.dumps(new_data) + "\n")
 
-    async def write_to_file(self):
+    def write_to_file(self):
         while True:
             try:
                 if not self.feedback_queue.empty():
                     async with aiofiles.open(self.new_data_file_local, "a") as f:
                         while not self.feedback_queue.empty():
-                            feedback_data = await self.feedback_queue.get()
-                            await f.write(feedback_data)
+                            feedback_data = self.feedback_queue.get()
+                            f.write(feedback_data)
             except Exception:
                 self.logger.error("write failed.", exc_info=True)
 
@@ -142,11 +142,11 @@ class FeedbackAnalysis(threading.Thread):
             self.logger.error("Failed to process feedback.", exc_info=True)
             raise HTTPException(status_code=500, detail="An error occurred during inference.")
 
-    async def upload_new_datafile(self):
+    def upload_new_datafile(self):
         # Upload to S3
         try:
-            await self.write_to_file()
-            await self.s3_client.upload_file(self.new_data_file_local, self.S3_BUCKET, f"{self.NEW_DATA_PATH}inputFile.jsonl")
+            self.write_to_file()
+            self.s3_client.upload_file(self.new_data_file_local, self.S3_BUCKET, f"{self.NEW_DATA_PATH}inputFile.jsonl")
             self.logger.info("New feedback data uploaded to S3.")
         except Exception:
             self.logger.error("Failed to upload new feedback data to S3.", exc_info=True)
