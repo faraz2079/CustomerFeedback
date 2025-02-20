@@ -5,5 +5,4 @@ fastapi
 pydantic
 torch
 transformers
-aiofiles
 uvicorn

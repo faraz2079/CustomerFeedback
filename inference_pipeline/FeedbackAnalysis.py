@@ -39,6 +39,7 @@ class FeedbackAnalysis(threading.Thread):
 
     def stop(self):
         self.running = False
+        self.join()
 
     # Log new data to S3
     def create_new_input_file(self, feedback):
@@ -111,7 +112,7 @@ class FeedbackAnalysis(threading.Thread):
             self.logger.error("Error during inference.", exc_info=True)
             raise e
 
-    def analyze(self, feedback):
+    async def analyze(self, feedback):
         start = time.perf_counter()
         if feedback.stars < 1 or feedback.stars > 5:
             self.logger.warning("Invalid stars value received.")
@@ -121,7 +122,7 @@ class FeedbackAnalysis(threading.Thread):
 
         # Perform inference and send response
         try:
-            sentiment, feedback_score, overall_sentiment, accuracy = self.analyze_feedback(
+            sentiment, feedback_score, overall_sentiment, accuracy = await self.analyze_feedback(
                 feedback)
             end = time.perf_counter()
             execution_time = end - start
