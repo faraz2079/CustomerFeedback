@@ -15,7 +15,7 @@ export const options = {
             vus: 10,
         },
     },
-    teardownTimeout: '3m',
+    teardownTimeout: '2m',
 };
 
 
