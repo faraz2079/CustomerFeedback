@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import de.fh_dortmund.inference.beans.RequestIDMetrics;
 import de.fh_dortmund.inference.domain.component.CustomMetricsBinder;
 import de.fh_dortmund.inference.domain.request.InferenceRequest;
 import de.fh_dortmund.inference.domain.response.InferenceResponse;
@@ -44,7 +45,12 @@ public class InferenceServiceImpl implements InferenceService {
 			long latency = Duration.between(timeStart, timeEnd).toMillis();
 			logger.info("Latency of the request is: " + latency + "ms");
 			if (response.getBody() != null) {
-				addMetrics(response.getBody(), latency);
+				RequestIDMetrics reqMetrics = new RequestIDMetrics();
+				if (request.getId() != 0 && !response.getBody().getPodName().isBlank()) {
+					reqMetrics.setRequestID(request.getId());
+					reqMetrics.setPodName(response.getBody().getPodName());
+				}
+				addMetrics(response.getBody(), latency, reqMetrics);
 				return response.getBody().getSentiment();
 			}
 		} catch (Exception e) {
@@ -53,10 +59,10 @@ public class InferenceServiceImpl implements InferenceService {
 		return null;
 	}
 
-	private void addMetrics(InferenceResponse response, long latency) {
+	private void addMetrics(InferenceResponse response, long latency, RequestIDMetrics reqMetrics) {
 		logger.info("Adding inference metrics to the dashboard.");
-		metrics.updateMetrics(latency, response.getFeedbackScore(), response.getAccuracy(),
-				response.getInferenceTime());
+		metrics.updateMetrics(latency, response.getFeedbackScore(), response.getAccuracy(), response.getInferenceTime(),
+				reqMetrics);
 	}
 
 }

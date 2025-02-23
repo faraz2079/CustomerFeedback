@@ -5,3 +5,4 @@ class FeedbackResponse(BaseModel):
     feedback_score: float
     accuracy: float
     inference_time: float
+    pod_name: str

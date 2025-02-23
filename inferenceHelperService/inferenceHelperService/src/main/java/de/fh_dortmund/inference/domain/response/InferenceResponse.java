@@ -16,5 +16,7 @@ public class InferenceResponse {
 	private float accuracy;
 	@JsonProperty("inference_time")
 	private float inferenceTime;
+	@JsonProperty("pod_name")
+	private String podName;
 
 }

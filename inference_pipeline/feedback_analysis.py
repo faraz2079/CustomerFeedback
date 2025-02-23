@@ -5,6 +5,7 @@ import time
 import torch
 import json
 import queue
+import os
 
 # Sentiment labels
 sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
@@ -110,6 +111,7 @@ class FeedbackAnalysis:
             raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
 
         FeedbackAnalysis.create_new_input_file(feedback)
+        pod_name = os.getenv("POD_NAME", "unknown_pod")
 
         # Perform inference and send response
         try:
@@ -127,7 +129,8 @@ class FeedbackAnalysis:
                 sentiment=overall_sentiment,
                 feedback_score=round(feedback_score, 2),
                 accuracy=round(accuracy, 2),
-                inference_time=round(execution_time, 2)
+                inference_time=round(execution_time, 2),
+                pod_name=pod_name
             )
         except Exception:
             self.logger.error("Failed to process feedback.", exc_info=True)
