@@ -12,7 +12,7 @@ export const options = {
         bulk_requests: {
             executor: 'shared-iterations',
             iterations: inputData.length,
-            vus: 20,
+            vus: 1,
         },
     },
     teardownTimeout: '2m',
@@ -37,8 +37,8 @@ export default function () {
 }
 
 export function teardown() {
-    //const url = 'http://localhost:32501/uploadInputFile';
-    const url = 'http://localhost:8000/uploadInputFile';
+    const url = 'http://localhost:32501/uploadInputFile';
+    //const url = 'http://localhost:8000/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {
         console.log('File successfully uploaded to S3.');
