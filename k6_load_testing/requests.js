@@ -12,7 +12,7 @@ export const options = {
         bulk_requests: {
             executor: 'shared-iterations',
             iterations: inputData.length,
-            vus: 10,
+            vus: 20,
         },
     },
     teardownTimeout: '2m',
