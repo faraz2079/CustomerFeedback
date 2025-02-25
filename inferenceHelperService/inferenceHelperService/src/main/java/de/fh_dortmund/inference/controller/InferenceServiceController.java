@@ -41,8 +41,8 @@ public class InferenceServiceController {
 			metrics.incrementRequestCount();
 			String sentiment = service.analyseFeedback(request);
 			LocalDateTime endTime = LocalDateTime.now();
-			logger.info("Request Processed: " + " Request ID: " + request.getId() + " Start Time: "
-					+ startTime.toString() + " End Time: " + endTime.toString());
+			logger.info("**** Request Processed: " + " Request ID: " + request.getId() + " Start Time: "
+					+ startTime.toString() + " End Time: " + endTime.toString() + " ****");
 			logger.info("Overall Sentiment of the customer for the product: " + sentiment);
 			return ResponseEntity.status(HttpStatus.OK).body(sentiment);
 		} catch (Exception e) {

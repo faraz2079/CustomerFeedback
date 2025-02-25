@@ -35,10 +35,10 @@ public class InferenceServiceImpl implements InferenceService {
 	public String analyseFeedback(InferenceRequest request) throws Exception {
 		try {
 			logger.info("Preparing request for inference:" + request.getText());
-			Instant timeStart = Instant.now();
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<InferenceRequest> inferenceEntity = new HttpEntity<InferenceRequest>(request, headers);
+			Instant timeStart = Instant.now();
 			ResponseEntity<InferenceResponse> response = rest.exchange(inferenceUrl, HttpMethod.POST, inferenceEntity,
 					InferenceResponse.class);
 			Instant timeEnd = Instant.now();
@@ -49,6 +49,8 @@ public class InferenceServiceImpl implements InferenceService {
 				if (request.getId() != 0 && !response.getBody().getPodName().isBlank()) {
 					reqMetrics.setRequestID(request.getId());
 					reqMetrics.setPodName(response.getBody().getPodName());
+					logger.info("*** Request ID: " + request.getId() + "has been processed by pod :"
+							+ response.getBody().getPodName() + " ***");
 				}
 				addMetrics(response.getBody(), latency, reqMetrics);
 				return response.getBody().getSentiment();

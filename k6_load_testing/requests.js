@@ -4,7 +4,7 @@ import { SharedArray } from 'k6/data';
 
 // Read and parse the JSON input file
 const inputData = new SharedArray('input data', function () {
-    return JSON.parse(open('/home/bhanu/CustomerFeedback/file_processing/inputFile1.json'));
+    return JSON.parse(open('/Users/happy/Documents/Project Thesis/project/CustomerFeedback/file_processing/inputFile1.json'));
 });
 
 export const options = {
@@ -12,18 +12,18 @@ export const options = {
         bulk_requests: {
             executor: 'shared-iterations',
             iterations: inputData.length,
-            vus: 50,
+            vus: 1,
         },
     },
-    teardownTimeout: '2m',
+    teardownTimeout: '60s',
 };
 
 
 export default function () {
     const record = inputData[__ITER];
     const payload = JSON.stringify(record);
-
-    const url = 'http://localhost:8501/api/v1/feedback';
+    const url = 'http://172.22.174.240:8501/api/v1/feedback';
+    //const url = 'http://localhost:8501/api/v1/feedback';
     const params = {
         headers: {
             'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ export default function () {
 }
 
 export function teardown() {
-    const url = 'http://localhost:32501/uploadInputFile';
+    const url = 'http://172.17.0.1:32501/uploadInputFile';
     //const url = 'http://localhost:8000/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {
