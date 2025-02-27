@@ -51,7 +51,6 @@ def download_model_from_s3():
     except Exception as e2:
         logger.error(f"Error listing files from S3: {e2}")
         raise e2
-    logger.info("Model download complete.")
     mb_model = MobileBertForSequenceClassification.from_pretrained(f"{local_model_dir}")
     mb_tokenizer = MobileBertTokenizer.from_pretrained(f"{local_model_dir}")
     return mb_model, mb_tokenizer

@@ -37,7 +37,7 @@ export default function () {
 }
 
 export function teardown() {
-    const url = 'http://172.17.0.1:32501/uploadInputFile';
+    const url = 'http://172.22.174.240:32501/uploadInputFile';
     //const url = 'http://localhost:8000/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {

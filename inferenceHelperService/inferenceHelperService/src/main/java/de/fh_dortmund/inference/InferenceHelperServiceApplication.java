@@ -1,7 +1,9 @@
 package de.fh_dortmund.inference;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -18,6 +20,7 @@ import org.apache.hc.core5.http.protocol.HttpContext;*/
 import org.apache.hc.core5.util.TimeValue;
 
 import de.fh_dortmund.inference.domain.component.RequestIdInterceptor;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 
 @SpringBootApplication
 @ComponentScan
@@ -27,32 +30,31 @@ public class InferenceHelperServiceApplication {
 		SpringApplication.run(InferenceHelperServiceApplication.class, args);
 	}
 
-	/* @Bean(autowireCandidate = true)
-	RestTemplate createRestTemplate() {
-		HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(
-				HttpClients.custom().setConnectionReuseStrategy(new ConnectionReuseStrategy() {
-					@Override
-					public boolean keepAlive(HttpRequest request, HttpResponse response, HttpContext context) {
-						return false;
-					}
-				}).build());
-		return new RestTemplate(factory);
-	} */
-	
+	/*
+	 * @Bean(autowireCandidate = true) RestTemplate createRestTemplate() {
+	 * HttpComponentsClientHttpRequestFactory factory = new
+	 * HttpComponentsClientHttpRequestFactory(
+	 * HttpClients.custom().setConnectionReuseStrategy(new ConnectionReuseStrategy()
+	 * {
+	 * 
+	 * @Override public boolean keepAlive(HttpRequest request, HttpResponse
+	 * response, HttpContext context) { return false; } }).build()); return new
+	 * RestTemplate(factory); }
+	 */
+
 	@Bean
 	CloseableHttpClient pooledHttpClient() {
-	    return HttpClients.custom()
-	            .setConnectionManager(new PoolingHttpClientConnectionManager())
-	            .evictExpiredConnections()
-	            .evictIdleConnections(TimeValue.ofSeconds(3))
-	            .build();
+		PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+		connectionManager.setMaxTotal(30);
+		return HttpClients.custom().setConnectionManager(connectionManager).evictExpiredConnections()
+				.evictIdleConnections(TimeValue.ofSeconds(3)).build();
 	}
 
 	@Bean
-	RestTemplate createRestTemplate(CloseableHttpClient pooledHttpClient) {
-	    return new RestTemplate(new HttpComponentsClientHttpRequestFactory(pooledHttpClient));
+	RestTemplate createRestTemplate(CloseableHttpClient pooledHttpClient, RestTemplateBuilder restTemplateBuilder) {
+		return restTemplateBuilder.requestFactory(() -> new HttpComponentsClientHttpRequestFactory(pooledHttpClient))
+				.build();
 	}
-
 
 	@Bean
 	WebMvcConfigurer webMvcConfigurer(RequestIdInterceptor reqInterceptor) {
@@ -63,5 +65,10 @@ public class InferenceHelperServiceApplication {
 			}
 
 		};
+	}
+	
+	@Bean
+	OtlpHttpSpanExporter otlpHttpSpanExporter(@Value("${tracing.url}") String url) {
+		return OtlpHttpSpanExporter.builder().setEndpoint(url).build();
 	}
 }

@@ -6,10 +6,25 @@ import torch
 import json
 import queue
 import os
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    OTLPSpanExporter as OTLPSpanExporterHTTP,
+)
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 # Sentiment labels
 sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
 feedback_queue = queue.Queue()
+OTLP_HTTP_ENDPOINT = os.environ.get(
+    "OTLP_HTTP_ENDPOINT", "http://172.17.0.1:4318/v1/traces"
+)
+
+MODE = os.environ.get("MODE", "otlp-http")
+TARGET_ONE_HOST = os.environ.get("TARGET_ONE_HOST", "inference-helper-service")
+OTEL_SERVICE_NAME = os.environ.get("OTEL_SERVICE_NAME", "feedback-inference-service")
 
 class FeedbackAnalysis:
     def __init__(self, app: FastAPI, new_data_file_local, logger, model, tokenizer, s3_client, s3_bucket, new_data_path, device):
@@ -23,6 +38,7 @@ class FeedbackAnalysis:
         self.NEW_DATA_PATH = new_data_path
         self.device = device
         self.initialize_routes()
+        setting_jaeger(self.app)
 
     def initialize_routes(self):
         @self.app.post("/feedback/analyse", response_model=FeedbackResponse)
@@ -68,19 +84,16 @@ class FeedbackAnalysis:
             tokens = self.tokenizer.tokenize(feedback.text.lower())
             input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
             inputs = torch.tensor([input_ids]).to(self.device)
-            self.logger.info("Tokenization complete.")
 
             # Predict sentiment
             with torch.no_grad():
                 outputs = self.model(inputs)
                 predictions = torch.argmax(outputs.logits, dim=1).item()
                 sentiment = sentiment_labels[predictions]
-            self.logger.info(f"Prediction complete. Prediction: {predictions} and Sentiment: {sentiment}")
 
             # Feedback scoring based on stars
             stars_weight = feedback.stars / 5
             feedback_score = predictions + stars_weight
-            self.logger.info(f"feedback score: {feedback_score}")
 
             # Accuracy
             accuracy = FeedbackAnalysis.calculate_accuracy(feedback_score)
@@ -97,7 +110,6 @@ class FeedbackAnalysis:
             else:
                 overall_sentiment = "Happy"
 
-            self.logger.info(f"Inference complete. Overall Sentiment: {overall_sentiment}")
             return sentiment, feedback_score, overall_sentiment, accuracy
 
         except Exception as e:
@@ -107,7 +119,6 @@ class FeedbackAnalysis:
     def analyze(self, feedback):
         start = time.perf_counter()
         if feedback.stars < 1 or feedback.stars > 5:
-            self.logger.warning("Invalid stars value received.")
             raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
 
         FeedbackAnalysis.create_new_input_file(feedback)
@@ -118,13 +129,13 @@ class FeedbackAnalysis:
             sentiment, feedback_score, overall_sentiment, accuracy = self.analyze_feedback(
                 feedback)
             end = time.perf_counter()
-            execution_time = end - start
+            execution_time = (end - start) * 1000
             self.logger.info(f"Final Analysis: " +
                         f"Sentiment: {sentiment} " +
                         f"Overall sentiment: {overall_sentiment} " +
-                        f"Feedback score: {feedback_score} " +
-                        f"Accuracy: {accuracy} " +
-                        f"Inference time: {execution_time} ")
+                        f"Feedback score: {round(feedback_score, 2)} " +
+                        f"Accuracy: {round(accuracy, 2)} " +
+                        f"Inference time: {round(execution_time, 2)} ")
             return FeedbackResponse(
                 sentiment=overall_sentiment,
                 feedback_score=round(feedback_score, 2),
@@ -145,3 +156,15 @@ class FeedbackAnalysis:
         except Exception:
             self.logger.error("Failed to upload new feedback data to S3.", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to upload file.")
+
+def setting_jaeger(app: FastAPI, log_correlation: bool = True) -> None:
+    # set the tracer provider
+    tracer = TracerProvider()
+    trace.set_tracer_provider(tracer)
+    if MODE == "otlp-http":
+        tracer.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporterHTTP(endpoint=OTLP_HTTP_ENDPOINT))
+        )
+    if log_correlation:
+        LoggingInstrumentor().instrument(set_logging_format=True)
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer)

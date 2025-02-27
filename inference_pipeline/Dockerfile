@@ -16,6 +16,8 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+ENV OTEL_SERVICE_NAME="feedback-inference-service"
+ENV TARGET_ONE_HOST="inference-helper-service"
 COPY . .
 
 # Expose the port that FastAPI will run on
