@@ -13,10 +13,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-/*import org.apache.hc.core5.http.ConnectionReuseStrategy;
+import org.apache.hc.core5.http.ConnectionReuseStrategy;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
-import org.apache.hc.core5.http.protocol.HttpContext;*/
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.util.TimeValue;
 
 import de.fh_dortmund.inference.domain.component.RequestIdInterceptor;
@@ -30,19 +30,22 @@ public class InferenceHelperServiceApplication {
 		SpringApplication.run(InferenceHelperServiceApplication.class, args);
 	}
 
-	/*
-	 * @Bean(autowireCandidate = true) RestTemplate createRestTemplate() {
-	 * HttpComponentsClientHttpRequestFactory factory = new
-	 * HttpComponentsClientHttpRequestFactory(
-	 * HttpClients.custom().setConnectionReuseStrategy(new ConnectionReuseStrategy()
-	 * {
-	 * 
-	 * @Override public boolean keepAlive(HttpRequest request, HttpResponse
-	 * response, HttpContext context) { return false; } }).build()); return new
-	 * RestTemplate(factory); }
-	 */
+	
+	@Bean(autowireCandidate = true)
+	RestTemplate createRestTemplate() {
+		HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(
+				HttpClients.custom().setConnectionReuseStrategy(new ConnectionReuseStrategy() {
 
-	@Bean
+					@Override
+					public boolean keepAlive(HttpRequest request, HttpResponse response, HttpContext context) {
+						return false;
+					}
+				}).build());
+		return new RestTemplate(factory);
+	}
+	 
+
+	/*@Bean
 	CloseableHttpClient pooledHttpClient() {
 		PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
 		connectionManager.setMaxTotal(30);
@@ -54,7 +57,7 @@ public class InferenceHelperServiceApplication {
 	RestTemplate createRestTemplate(CloseableHttpClient pooledHttpClient, RestTemplateBuilder restTemplateBuilder) {
 		return restTemplateBuilder.requestFactory(() -> new HttpComponentsClientHttpRequestFactory(pooledHttpClient))
 				.build();
-	}
+	}*/
 
 	@Bean
 	WebMvcConfigurer webMvcConfigurer(RequestIdInterceptor reqInterceptor) {
