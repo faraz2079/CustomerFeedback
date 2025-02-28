@@ -13,7 +13,7 @@ export const options = {
             executor: 'shared-iterations',
             iterations: inputData.length,
             vus: 1,
-            duration: '15m'
+            duration: '15m',
         },
     },
     teardownTimeout: '60s',
