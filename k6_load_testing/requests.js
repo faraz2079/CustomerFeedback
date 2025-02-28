@@ -13,6 +13,7 @@ export const options = {
             executor: 'shared-iterations',
             iterations: inputData.length,
             vus: 1,
+            duration: '15m'
         },
     },
     teardownTimeout: '60s',
@@ -22,7 +23,7 @@ export const options = {
 export default function () {
     const record = inputData[__ITER];
     const payload = JSON.stringify(record);
-    const url = 'http://172.22.174.240:8501/api/v1/feedback';
+    const url = 'http://172.17.0.1:8501/api/v1/feedback';
     //const url = 'http://localhost:8501/api/v1/feedback';
     const params = {
         headers: {
@@ -37,7 +38,7 @@ export default function () {
 }
 
 export function teardown() {
-    const url = 'http://172.22.174.240:32501/uploadInputFile';
+    const url = 'http://172.17.0.1:32501/uploadInputFile';
     //const url = 'http://localhost:8000/uploadInputFile';
     const res = http.get(url);
     if (res.status === 200) {
