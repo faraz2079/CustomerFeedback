@@ -6,20 +6,28 @@ scrape_configs:
   - job_name: 'inferenceHelperServiceLocal'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['172.22.174.240:8501']
+      - targets: ['172.22.174.171:8501']
   - job_name: 'inferenceHelperServiceEdge'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ '172.22.174.240:8701' ]
+      - targets: [ '172.22.174.171:8701' ]
   - job_name: 'inferenceHelperServiceCloud'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ '172.22.174.240:8901' ]
+      - targets: [ '172.22.174.171:8901' ]
   - job_name: 'kube-state-metrics'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['172.22.174.240:32000']
+      - targets: ['172.22.174.171:32000']
   - job_name: 'kepler-metrics'
     metrics_path: '/metrics'
     static_configs:
-      - targets: [ '172.22.174.240:32602' ]
+      - targets: [ '172.22.174.171:32602' ]
+  - job_name: 'kube-state-metrics-edge'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['172.22.174.220:32000']
+  - job_name: 'kepler-metrics-edge'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: [ '172.22.174.220:32602' ]
