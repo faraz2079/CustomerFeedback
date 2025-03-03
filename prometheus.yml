@@ -31,3 +31,11 @@ scrape_configs:
     metrics_path: '/metrics'
     static_configs:
       - targets: [ '172.22.174.220:32602' ]
+  - job_name: 'kube-state-metrics-cloud'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: [ '13.55.80.250:32000' ]
+  - job_name: 'kepler-metrics-cloud'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: [ '13.55.80.250:32602' ]
