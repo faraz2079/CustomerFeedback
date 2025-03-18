@@ -19,7 +19,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 sentiment_labels = {0: "Very Negative", 1: "Negative", 2: "Neutral", 3: "Positive", 4: "Very Positive"}
 feedback_queue = queue.Queue()
 OTLP_HTTP_ENDPOINT = os.environ.get(
-    "OTLP_HTTP_ENDPOINT", "http://172.22.199.167:4318/v1/traces"
+    "OTLP_HTTP_ENDPOINT", "http://192.168.34.204:4318/v1/traces"
 )
 
 MODE = os.environ.get("MODE", "otlp-http")
