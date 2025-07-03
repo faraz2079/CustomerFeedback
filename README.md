@@ -12,6 +12,8 @@ background: `nohup ./run_experiment.sh > experiment.out 2>&1 &`
 
 track the background process: `tail -f experiment.out`
 
+track if the process is running in the background using PID: `ps -p 200502 -f`
+
 **Commands for killing and tracking the process of script:**
 
 `sudo pkill -f wrk`
