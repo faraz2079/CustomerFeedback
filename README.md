@@ -1,17 +1,14 @@
-first deploy the application using the deployment and service file in inference_pipeline, then we can run the script and it applies deployment files automatically for testing purposes. 
+First deploy the application using the deployment and service file in inference_pipeline, then we can run the script and it applies deployment files automatically for testing purposes. 
 
-
-for running the script:() 
+for running the script: 
 ./run_experiment.sh | tee -a experiment.log
 
-
+Commands for killing and tracking the process of script: 
 sudo pkill -f wrk
-
 ps aux | grep wrk
 
-in this command you have to give the path to the wrk2 directory: 
+in this command you have to give the path to the wrk2 directory: => give the url of the customerfeedback service and url of the VM. 
 /home/ubuntu/DeathStarBench/wrk2/wrk -t96 -c10000 -d300s -R 10000 -s ./mixed-workload.lua http://192.168.1.243:30915 > wrk_R10000_5min.log &
-
 
 
 # CustomerFeedback
