@@ -1,0 +1,24 @@
+Running 5m test @ http://192.168.1.243:30915
+  12 threads and 400 connections
+
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+
+-----------------------------------------------------------------------
+Test Results @ http://192.168.1.243:30915 
+  Thread Stats   Avg      Stdev     99%   +/- Stdev
+    Latency     2.50m     1.32m    4.71m    56.46%
+    Req/Sec     1.29     12.03   100.00     98.81%
+  4277 requests in 5.00m, 0.95MB read
+Requests/sec:     14.25  
+Transfer/sec:      3.25KB

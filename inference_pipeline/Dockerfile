@@ -24,4 +24,5 @@ COPY . .
 EXPOSE 8000
 
 # Command to start the FastAPI app with Uvicorn
-CMD ["uvicorn", "inference:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV WORKERS=4
+CMD ["sh", "-c", "gunicorn inference:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 -w $WORKERS"]
