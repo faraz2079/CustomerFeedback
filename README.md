@@ -4,11 +4,18 @@ First deploy the application using the deployment and service file in inference_
 - every load cycle contains 3 cycles with 2 minutes pause in between and also 2 minutes pause between the load cycles.
 - it saves the result in the files in the directory that the script exists
 
-for running the script: 
-./run_experiment.sh | tee -a experiment.log
+**for running the script:** 
 
-Commands for killing and tracking the process of script: 
+foreground : ./run_experiment.sh | tee -a experiment.log
+
+background: nohup ./run_experiment.sh > experiment.out 2>&1 & 
+
+track the background process: tail -f experiment.out
+
+**Commands for killing and tracking the process of script:**
+
 sudo pkill -f wrk
+
 ps aux | grep wrk
 
 in this command you have to give the path to the wrk2 directory: => give the url of the customerfeedback service and url of the VM. 
