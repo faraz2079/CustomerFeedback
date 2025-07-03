@@ -6,20 +6,20 @@ First deploy the application using the deployment and service file in inference_
 
 **for running the script:** 
 
-foreground : ./run_experiment.sh | tee -a experiment.log
+foreground : `./run_experiment.sh | tee -a experiment.log`
 
-background: nohup ./run_experiment.sh > experiment.out 2>&1 & 
+background: `nohup ./run_experiment.sh > experiment.out 2>&1 &` 
 
-track the background process: tail -f experiment.out
+track the background process: `tail -f experiment.out`
 
 **Commands for killing and tracking the process of script:**
 
-sudo pkill -f wrk
+`sudo pkill -f wrk`
 
-ps aux | grep wrk
+`ps aux | grep wrk`
 
 in this command you have to give the path to the wrk2 directory: => give the url of the customerfeedback service and url of the VM. 
-/home/ubuntu/DeathStarBench/wrk2/wrk -t96 -c10000 -d300s -R 10000 -s ./mixed-workload.lua http://192.168.1.243:30915 > wrk_R10000_5min.log &
+`/home/ubuntu/DeathStarBench/wrk2/wrk -t96 -c10000 -d300s -R 10000 -s ./mixed-workload.lua http://192.168.1.243:30915 > wrk_R10000_5min.log &`
 
 
 # CustomerFeedback
