@@ -16,9 +16,14 @@ log() {
 run_wrk_cycles() {
   RATE=$1
   LABEL=$2
+  THREADS=$3
+  CONNECTIONS=$4
+
   for i in {1..3}; do
     log "🚀 Starting $LABEL load - Cycle $i"
-    /home/ubuntu/DeathStarBench/wrk2/wrk -t12 -c400 -d300s -R $RATE -s $SCRIPT $APP_URL > wrk_${LABEL}_cycle${i}.log
+    /home/ubuntu/DeathStarBench/wrk2/wrk \
+      -t$THREADS -c$CONNECTIONS -d300s -R $RATE \
+      -s $SCRIPT $APP_URL > wrk_${LABEL}_cycle${i}.log
     log "🛑 Resting for 2 minutes"
     sleep 120
   done
@@ -54,21 +59,21 @@ MONITOR_PID=$!
 
 # === LOW LOAD ===
 redeploy_app "deployment-low.yaml"
-run_wrk_cycles 600 "low"
-log "🛑 Final rest before switching to next load"
+run_wrk_cycles 400 "low" 8 300
+
+log "🛑 Final rest before switching to MID load"
 sleep 120
 
-# === MEDIUM LOAD ===
+# === MID LOAD ===
 redeploy_app "deployment-mid.yaml"
-run_wrk_cycles 1000 "mid"
-log "🛑 Final rest before switching to next load"
+run_wrk_cycles 850 "mid" 12 600
+
+log "🛑 Final rest before switching to HIGH load"
 sleep 120
 
 # === HIGH LOAD ===
 redeploy_app "deployment-high.yaml"
-run_wrk_cycles 1800 "high"
-log "🛑 Final rest before switching to next load"
-sleep 120
+run_wrk_cycles 3000 "high" 24 1000
 
 # Stop background monitoring
 log "🛑 Stopping node resource tracking..."
