@@ -23,6 +23,12 @@ track if the process is running in the background using PID: `ps -p 200502 -f`
 in this command you have to give the path to the wrk2 directory: => give the url of the customerfeedback service and url of the VM. 
 `/home/ubuntu/DeathStarBench/wrk2/wrk -t96 -c10000 -d300s -R 10000 -s ./mixed-workload.lua http://192.168.1.243:30915 > wrk_R10000_5min.log &`
 
+This command is the polished command for running the workload on the customer feedback application and the cpu workload will reach up to 86%: 
+`/home/emulate/CustomerFeedback/wrk2/wrk -D exp -t 12 -c 400 -d 300s -L \
+  -s scripts/mixed-workload.lua \
+  http://172.22.229.216:32730 \
+  -R 850`
+
 
 # CustomerFeedback
 This project work performs sentiment analysis on customer feedback for the product they have purchased.
