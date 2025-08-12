@@ -29,6 +29,9 @@ This command is the polished command for running the workload on the customer fe
   http://172.22.229.216:32730 \
   -R 850`
 
+This the command for port-forwarding the service: 
+`kubectl -n sa port-forward svc/customer-feedback-service 8000:80`
+
 
 # CustomerFeedback
 This project work performs sentiment analysis on customer feedback for the product they have purchased.
