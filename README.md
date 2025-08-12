@@ -32,6 +32,11 @@ This command is the polished command for running the workload on the customer fe
 This the command for port-forwarding the service: 
 `kubectl -n sa port-forward svc/customer-feedback-service 8000:80`
 
+After the port forwarding we can check if we get the answer from the service with this commands: 
+`curl -sS -X POST http://127.0.0.1:8000/feedback/analyse \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Great product!","stars":5}' | jq`
+
 
 # CustomerFeedback
 This project work performs sentiment analysis on customer feedback for the product they have purchased.
