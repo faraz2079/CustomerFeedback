@@ -1,5 +1,9 @@
 First deploy the application using the deployment and service file in inference_pipeline, then we can run the script and it applies deployment files automatically for testing purposes. 
 
+`Kubectl apply -f deployment.yaml`
+`Kubectl apply -f service.yaml`
+
+
 - The script find all of the required information such as service ip and port and also the address to the wrk
 - The script runs for 63 minutes and it runs 3 load cycles (low - mid - high):
 - every load cycle contains 3 cycles with 2 minutes pause in between and also 2 minutes pause between the load cycles.
