@@ -9,6 +9,8 @@ First deploy the application using the deployment and service file in inference_
 - every load cycle contains 3 cycles with 2 minutes pause in between and also 2 minutes pause between the load cycles.
 - it saves the result in the files in the directory that the script exists
 
+You will find the script for running the "scripts" directory.
+
 **for running the script:** 
 
 foreground : `./run_experiment.sh | tee -a experiment.log`
